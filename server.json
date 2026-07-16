@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.spidra-io/spidra-mcp-server",
   "title": "Spidra",
-  "description": "AI-powered web scraping and crawling: scrape pages with structured extraction, batch-process URLs, and crawl entire sites.",
+  "description": "AI-powered web scraping and crawling: extract structured data, batch-process URLs, crawl sites.",
   "repository": {
     "url": "https://github.com/spidra-io/spidra-mcp-server",
     "source": "github"
