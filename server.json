@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.spidra-io/spidra-mcp-server",
+  "title": "Spidra",
+  "description": "AI-powered web scraping and crawling: scrape pages with structured extraction, batch-process URLs, and crawl entire sites.",
+  "repository": {
+    "url": "https://github.com/spidra-io/spidra-mcp-server",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "spidra-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SPIDRA_API_KEY",
+          "description": "Your Spidra API key (get one at https://app.spidra.io under Settings > API Keys)",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

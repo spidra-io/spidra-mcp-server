@@ -1,0 +1,44 @@
+{
+  "name": "spidra-mcp",
+  "version": "0.1.0",
+  "description": "Official Spidra MCP server — AI-powered web scraping and crawling tools for MCP clients",
+  "keywords": ["spidra", "mcp", "model context protocol", "web scraping", "crawling", "ai"],
+  "homepage": "https://spidra.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spidra-io/spidra-mcp-server"
+  },
+  "license": "MIT",
+  "author": "Spidra <hello@spidra.io>",
+  "type": "module",
+  "mcpName": "io.github.spidra-io/spidra-mcp-server",
+  "bin": {
+    "spidra-mcp": "dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup && shx chmod +x dist/index.js",
+    "dev": "tsup --watch",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "fastmcp": "^4.3.2",
+    "spidra": "^0.4.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "shx": "^0.3.4",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
