@@ -1,8 +1,15 @@
 {
   "name": "spidra-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Official Spidra MCP server — AI-powered web scraping and crawling tools for MCP clients",
-  "keywords": ["spidra", "mcp", "model context protocol", "web scraping", "crawling", "ai"],
+  "keywords": [
+    "spidra",
+    "mcp",
+    "model context protocol",
+    "web scraping",
+    "crawling",
+    "ai"
+  ],
   "homepage": "https://spidra.io",
   "repository": {
     "type": "git",
@@ -15,7 +22,9 @@
   "bin": {
     "spidra-mcp": "dist/index.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup && shx chmod +x dist/index.js",
     "dev": "tsup --watch",

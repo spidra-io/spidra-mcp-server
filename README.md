@@ -1,7 +1,7 @@
 <div align="center">
   <a name="readme-top"></a>
   <img
-    src="https://raw.githubusercontent.com/spidra-io/spidra-frontend/blob/main/public/images/logo-icon.png"
+    src="https://raw.githubusercontent.com/spidra-io/spidra-mcp-server/main/img/logo.png"
     height="172"
   >
 </div>
