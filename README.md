@@ -1,10 +1,16 @@
+<div align="center">
+  <a name="readme-top"></a>
+  <img
+    src="https://raw.githubusercontent.com/spidra-io/spidra-frontend/blob/main/public/images/logo-icon.png"
+    height="172"
+  >
+</div>
+
 # Spidra MCP Server
 
 The official [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for [Spidra](https://spidra.io).
 
 MCP is the standard that lets AI assistants use external tools. When you connect this server to an assistant like Claude Code, Claude Desktop, Cursor, Windsurf, or VS Code, the assistant gains the ability to scrape web pages, process lists of URLs, and crawl entire websites on its own. You describe what you want in plain language, and the assistant picks the right Spidra tool, runs it, and works with the extracted data directly in the conversation.
-
-You do not write any code to use this. If you can edit a config file and paste an API key, you can set it up in about two minutes.
 
 ## Features
 
@@ -27,7 +33,7 @@ You need three things:
 
 ## Installation
 
-Pick your client. Every setup below does the same thing: it tells your assistant to run `npx -y spidra-mcp` and hands the server your API key through an environment variable.
+Pick your client. Every setup below does the same thing. It tells your assistant to run `npx -y spidra-mcp` and hands the server your API key through an environment variable.
 
 ### Claude Code
 
@@ -550,15 +556,11 @@ Transient network failures and 5xx responses are retried automatically with back
 
 ## Troubleshooting
 
-**The assistant does not see any Spidra tools.** Restart your client after adding the config. Most clients only read MCP configuration at startup. In Claude Code, run `/mcp` to check the connection status.
-
-**"No Spidra API key configured."** The `SPIDRA_API_KEY` variable is not reaching the server. Make sure it is inside the `env` block of the server entry, not at the top level of the config file, and that the key still exists under **Settings** > **API Keys** in your dashboard.
-
-**A scrape "timed out."** The job is still running on the server and nothing is lost. The error includes the job ID, and the assistant will fetch the result with `spidra_check_scrape_status`. Bot-protected sites can take a couple of minutes.
-
-**Results come back empty when using a schema.** Check the schema: every field you want must be defined with a type. An object with no properties gives the AI nothing to fill in.
-
-**`npx` cannot find the package.** Make sure you are on Node 20 or newer and that your network allows access to the npm registry.
+- **The assistant does not see any Spidra tools.** Restart your client after adding the config. Most clients only read MCP configuration at startup. In Claude Code, run `/mcp` to check the connection status.
+- **"No Spidra API key configured."** The `SPIDRA_API_KEY` variable is not reaching the server. Make sure it is inside the `env` block of the server entry, not at the top level of the config file, and that the key still exists under **Settings** > **API Keys** in your dashboard.
+- **A scrape "timed out."** The job is still running on the server and nothing is lost. The error includes the job ID, and the assistant will fetch the result with `spidra_check_scrape_status`. Bot-protected sites can take a couple of minutes.
+- **Results come back empty when using a schema.** Check the schema: every field you want must be defined with a type. An object with no properties gives the AI nothing to fill in.
+- **`npx` cannot find the package.** Make sure you are on Node 20 or newer and that your network allows access to the npm registry.
 
 ## Development
 
