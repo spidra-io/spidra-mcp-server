@@ -27,5 +27,25 @@
         }
       ]
     }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.spidra.io/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {api_key}",
+          "isSecret": true
+        }
+      ],
+      "variables": {
+        "api_key": {
+          "description": "Your Spidra API key (get one at https://app.spidra.io under Settings > API Keys)",
+          "isRequired": true,
+          "isSecret": true
+        }
+      }
+    }
   ]
 }

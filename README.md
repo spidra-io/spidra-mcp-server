@@ -33,7 +33,10 @@ You need three things:
 
 ## Installation
 
-Pick your client. Every setup below does the same thing. It tells your assistant to run `npx -y spidra-mcp` and hands the server your API key through an environment variable.
+Two ways to connect:
+
+- **Hosted (no install)** — point any MCP client that supports Streamable HTTP at `https://mcp.spidra.io/mcp` and send your API key as `Authorization: Bearer spd_YOUR_API_KEY` (or an `X-Spidra-API-Key` header). Nothing to run locally.
+- **Local (stdio)** — pick your client below. Every setup does the same thing: it tells your assistant to run `npx -y spidra-mcp` and hands the server your API key through an environment variable.
 
 ### Claude Code
 
@@ -138,6 +141,8 @@ env HTTP_STREAMABLE_SERVER=true SPIDRA_API_KEY=spd_YOUR_API_KEY npx -y spidra-mc
 ```
 
 Then connect to `http://localhost:3000/mcp`. On this transport the API key can also be sent per request using an `X-Spidra-API-Key` header or an `Authorization: Bearer` header, which is useful when one server instance serves more than one user.
+
+This is exactly how the hosted `https://mcp.spidra.io/mcp` endpoint runs in production — one shared instance, keyed per request, so you don't need to set `SPIDRA_API_KEY` at all when using the hosted URL.
 
 ## Try it
 
