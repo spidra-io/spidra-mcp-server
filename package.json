@@ -29,6 +29,7 @@
     "build": "tsup && shx chmod +x dist/index.js",
     "dev": "tsup --watch",
     "prepare": "npm run build",
+    "postinstall": "node scripts/patch-fastmcp-consent.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test tests/*.test.mjs"
   },

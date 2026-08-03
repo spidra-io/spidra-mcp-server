@@ -10,7 +10,9 @@
 
 The official [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for [Spidra](https://spidra.io).
 
-MCP is the standard that lets AI assistants use external tools. When you connect this server to an assistant like Claude Code, Claude Desktop, Cursor, Windsurf, or VS Code, the assistant gains the ability to scrape web pages, process lists of URLs, and crawl entire websites on its own. You describe what you want in plain language, and the assistant picks the right Spidra tool, runs it, and works with the extracted data directly in the conversation.
+MCP is the standard that lets AI assistants use external tools. When you connect this server to an assistant like Claude Code, Claude Desktop, Cursor, Windsurf, or VS Code, the assistant gains the ability to scrape web pages, process lists of URLs, and crawl entire websites on its own. 
+
+All you have to do is describe what you want in plain language, and the assistant picks the right Spidra tool, runs it, and works with the extracted data directly in the conversation.
 
 ## Features
 
@@ -37,25 +39,25 @@ That's it if you use the hosted endpoint below. Running the server yourself addi
 
 ## Hosted (no install)
 
-The fastest way to connect: point your client at `https://mcp.spidra.io/mcp`. Nothing to install, nothing to keep running, nothing to update.
+All you have to do is point your client at `https://mcp.spidra.io/mcp`.
 
-> Every request against the hosted endpoint is billed to your account exactly like a direct API call — there's no free keyless tier, whichever auth method you use below.
+> Every request against the hosted endpoint is billed to your account exactly like a direct API call.
 
 ### OAuth (recommended)
 
-Log in with your Spidra account in the browser — no key to create or paste:
+Log in with your Spidra account in the browser.
 
 ```bash
 claude mcp add --transport http spidra https://mcp.spidra.io/mcp
 ```
 
-Start a new Claude Code session and run `/mcp` — it opens a browser to log in and approve access, then shows the connection as active. Claude Desktop, Cursor, and other OAuth-capable clients work the same way: add the server with just the URL, no headers, and the client prompts for login on first connect.
+Start a new Claude Code session and run `/mcp`. It opens a browser to log in and approve access, then shows the connection as active.
 
 > Logging in via OAuth automatically creates (and reuses) a dedicated API key labeled **MCP (OAuth)** on your account — visible and revocable anytime under **Settings** > **API Keys**, exactly like any other key.
 
 ### API key (alternative)
 
-Prefer a static key — for CI, scripting, or a client without OAuth support:
+Prefer a static key for CI, scripting, or a client without OAuth support:
 
 #### Claude Code
 
@@ -150,7 +152,9 @@ Add this to `~/.codeium/windsurf/mcp_config.json`:
 
 ## Local installation (stdio)
 
-Prefer to run the server yourself? Every setup below does the same thing: it tells your assistant to run `npx -y spidra-mcp` and hands the server your API key through an environment variable. This is also the option to use if you're calling a staging or self-hosted Spidra API instead of the public one — see [Configuration](#configuration).
+Prefer to run the server yourself? Every setup below does the same thing: it tells your assistant to run `npx -y spidra-mcp` and hands the server your API key through an environment variable. 
+
+This is also the option to use if you're calling a staging or self-hosted Spidra API instead of the public one — see [Configuration](#configuration).
 
 ### Claude Code
 
@@ -254,7 +258,7 @@ By default the server talks to your client over stdio, which is what all the con
 env HTTP_STREAMABLE_SERVER=true SPIDRA_API_KEY=spd_YOUR_API_KEY npx -y spidra-mcp
 ```
 
-Then connect to `http://localhost:3000/mcp`. On this transport the API key can also be sent per request using an `X-Spidra-API-Key` header or an `Authorization: Bearer` header, which is useful when one server instance serves more than one user.
+Then connect to `http://localhost:3000/mcp`. On this transport the API key can also be sent per request using an `Authorization: Bearer` header, which is useful when one server instance serves more than one user.
 
 This is exactly how the hosted `https://mcp.spidra.io/mcp` endpoint runs in production — one shared instance, keyed per request, so you don't need to set `SPIDRA_API_KEY` at all when using the hosted URL.
 
@@ -283,7 +287,7 @@ These apply to the local/self-hosted server (npx, manual install, or your own HT
 | `HTTP_STREAMABLE_SERVER` | No | Set to `true` to serve HTTP at `http://localhost:3000/mcp` instead of stdio |
 | `PORT` / `HOST` | No | Bind address for the HTTP transport. Defaults are `3000` and `localhost` |
 
-On the HTTP transport (self-hosted or hosted), the API key can also be sent per request via an `X-Spidra-API-Key` or `Authorization: Bearer` header, which is useful when one server instance serves more than one user.
+On the HTTP transport (self-hosted or hosted), the API key can also be sent per request via an `Authorization: Bearer` header, which is useful when one server instance serves more than one user. If a request carries both a header key and a logged-in OAuth session, the header key wins.
 
 ## How to choose a tool
 
@@ -681,7 +685,7 @@ Transient network failures and 5xx responses are retried automatically with back
 
 - **The assistant does not see any Spidra tools.** Restart your client after adding the config. Most clients only read MCP configuration at startup. In Claude Code, run `/mcp` to check the connection status.
 - **"No Spidra API key configured."** For local/stdio setups, the `SPIDRA_API_KEY` variable is not reaching the server — make sure it is inside the `env` block of the server entry, not at the top level of the config file. For the hosted endpoint, check your header name and value (below).
-- **Hosted endpoint returns a 401.** The header is missing, misnamed, or the key has been revoked. It must be exactly `Authorization: Bearer spd_...` or `X-Spidra-API-Key: spd_...`, and the key must still exist under **Settings** > **API Keys** in your dashboard.
+- **Hosted endpoint returns a 401.** The header is missing, misnamed, or the key has been revoked. It must be exactly `Authorization: Bearer spd_...`, and the key must still exist under **Settings** > **API Keys** in your dashboard.
 - **OAuth login doesn't open a browser, or the client falls back to asking for a key.** Not every MCP client supports OAuth yet — use the API key method for that client instead. If a browser window did open but the flow failed partway through, retry; if it keeps failing, confirm you're logged into [app.spidra.io](https://app.spidra.io) in that browser.
 - **A scrape "timed out."** The job is still running on the server and nothing is lost. The error includes the job ID, and the assistant will fetch the result with `spidra_check_scrape_status`. Bot-protected sites can take a couple of minutes.
 - **Results come back empty when using a schema.** Check the schema: every field you want must be defined with a type. An object with no properties gives the AI nothing to fill in.

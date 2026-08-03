@@ -53,6 +53,8 @@ class ConsoleLogger implements Logger {
   }
 }
 
+const logger = new ConsoleLogger();
+
 // ---------------------------------------------------------------------------
 // Auth — env var for stdio, headers for HTTP transports
 // ---------------------------------------------------------------------------
@@ -110,10 +112,18 @@ async function introspectOAuthToken(accessToken: string): Promise<string | undef
       },
       body: JSON.stringify({ access_token: accessToken }),
     });
-    if (!response.ok) return undefined;
+    if (!response.ok) {
+      logger.error(`OAuth token introspection failed: HTTP ${response.status}`);
+      return undefined;
+    }
     const data = (await response.json()) as { active: boolean; apiKey?: string };
-    return data.active ? data.apiKey : undefined;
-  } catch {
+    if (!data.active || !data.apiKey) {
+      logger.error("OAuth token introspection returned an inactive/invalid token");
+      return undefined;
+    }
+    return data.apiKey;
+  } catch (err) {
+    logger.error("OAuth token introspection request failed:", err);
     return undefined;
   }
 }
@@ -132,10 +142,11 @@ async function authenticate(request?: { headers: IncomingHttpHeaders }): Promise
       const session = await oauthProvider.authenticate(request as Parameters<typeof oauthProvider.authenticate>[0]);
       const apiKey = session?.accessToken ? await introspectOAuthToken(session.accessToken) : undefined;
       if (apiKey) return { spidraApiKey: apiKey };
-    } catch {
+    } catch (err) {
       // No valid OAuth session either — fall through to the same
       // "no key configured" behavior a missing API key already gets,
       // surfaced with a clear message at tool-call time in getClient().
+      logger.error("OAuth session validation failed:", err);
     }
   }
 
@@ -146,9 +157,10 @@ function getClient(session?: SessionData): SpidraClient {
   const apiKey = session?.spidraApiKey ?? process.env.SPIDRA_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "No Spidra API key configured. Set the SPIDRA_API_KEY environment variable " +
-        "(get a key at https://app.spidra.io under Settings > API Keys), " +
-        "or send an X-Spidra-API-Key / Authorization: Bearer header on HTTP transports."
+      "No Spidra credentials found. Log in with OAuth (supported clients prompt for this " +
+        "automatically on /mcp or first connect), or set the SPIDRA_API_KEY environment " +
+        "variable / send an Authorization: Bearer header with a key from https://app.spidra.io " +
+        "under Settings > API Keys."
     );
   }
   return new SpidraClient({
@@ -297,7 +309,7 @@ const server = new FastMCP<SessionData>({
     "use spidra_batch_scrape (2-50 known URLs) when each URL should produce its OWN independent result, e.g. the same fields from every product page (async — poll spidra_check_batch_status); " +
     "use spidra_crawl to discover and process pages starting from one URL when you do NOT know the page URLs upfront (async — poll spidra_check_crawl_status). " +
     "Every scraped URL costs credits (base 2 per URL plus AI tokens), so prefer the narrowest tool and smallest page counts that answer the question.",
-  logger: new ConsoleLogger(),
+  logger,
   roots: { enabled: false },
   ...(oauthProvider ? { auth: oauthProvider } : {}),
   authenticate,
