@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { FastMCP, type Logger } from "fastmcp";
+import { FastMCP, OAuthProvider, type Logger } from "fastmcp";
 import type { IncomingHttpHeaders } from "node:http";
 import { createRequire } from "node:module";
 import { z } from "zod";
@@ -59,14 +59,63 @@ class ConsoleLogger implements Logger {
 
 function extractApiKey(headers: IncomingHttpHeaders): string | undefined {
   const headerKey = headers["x-spidra-api-key"] ?? headers["x-api-key"];
-  if (typeof headerKey === "string" && headerKey.trim()) return headerKey.trim();
+  if (typeof headerKey === "string" && headerKey.trim().startsWith("spd_")) return headerKey.trim();
 
-  const auth = headers["authorization"];
-  if (typeof auth === "string" && auth.toLowerCase().startsWith("bearer ")) {
-    const token = auth.slice(7).trim();
-    if (token) return token;
+  const authHeader = headers["authorization"];
+  if (typeof authHeader === "string" && authHeader.toLowerCase().startsWith("bearer ")) {
+    const token = authHeader.slice(7).trim();
+    // Only treat this as a raw API key if it actually looks like one — an
+    // OAuth access token (below) arrives the same way but isn't one.
+    if (token.startsWith("spd_")) return token;
   }
   return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// OAuth — lets clients do a browser login instead of pasting an API key.
+// fastmcp's OAuthProvider handles the entire outer OAuth 2.1 dance (PKCE,
+// dynamic client registration, consent, discovery) on its own; Spidra's
+// backend is configured here as the single upstream confidential client it
+// talks to. Optional — only active when all three env vars below are set.
+// ---------------------------------------------------------------------------
+
+const OAUTH_ENABLED =
+  HTTP_MODE &&
+  Boolean(process.env.MCP_OAUTH_CLIENT_ID && process.env.MCP_OAUTH_CLIENT_SECRET && process.env.MCP_PUBLIC_URL);
+
+const oauthProvider = OAUTH_ENABLED
+  ? new OAuthProvider({
+      baseUrl: process.env.MCP_PUBLIC_URL!,
+      clientId: process.env.MCP_OAUTH_CLIENT_ID!,
+      clientSecret: process.env.MCP_OAUTH_CLIENT_SECRET!,
+      authorizationEndpoint: `${process.env.SPIDRA_API_URL}/oauth/authorize`,
+      tokenEndpoint: `${process.env.SPIDRA_API_URL}/oauth/token`,
+      // allowedRedirectUriPatterns intentionally left unset — fastmcp's
+      // default (loopback-only: http://localhost:*, http://127.0.0.1:*) is
+      // the right choice for CLI-style MCP clients; widening it is a CWE-601
+      // open-redirect risk per fastmcp's own source comments.
+    })
+  : undefined;
+
+// Resolves a validated OAuth session (an upstream access token WE issued via
+// /api/oauth/token) to the real Spidra API key it maps to. Server-to-server
+// only — never exposed to the browser or the MCP client.
+async function introspectOAuthToken(accessToken: string): Promise<string | undefined> {
+  try {
+    const response = await fetch(`${process.env.SPIDRA_API_URL}/oauth/introspect`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.MCP_OAUTH_CLIENT_SECRET}`,
+      },
+      body: JSON.stringify({ access_token: accessToken }),
+    });
+    if (!response.ok) return undefined;
+    const data = (await response.json()) as { active: boolean; apiKey?: string };
+    return data.active ? data.apiKey : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function authenticate(request?: { headers: IncomingHttpHeaders }): Promise<SessionData> {
@@ -74,7 +123,23 @@ async function authenticate(request?: { headers: IncomingHttpHeaders }): Promise
   if (!request) {
     return { spidraApiKey: process.env.SPIDRA_API_KEY };
   }
-  return { spidraApiKey: extractApiKey(request.headers) ?? process.env.SPIDRA_API_KEY };
+
+  const headerKey = extractApiKey(request.headers);
+  if (headerKey) return { spidraApiKey: headerKey };
+
+  if (oauthProvider) {
+    try {
+      const session = await oauthProvider.authenticate(request as Parameters<typeof oauthProvider.authenticate>[0]);
+      const apiKey = session?.accessToken ? await introspectOAuthToken(session.accessToken) : undefined;
+      if (apiKey) return { spidraApiKey: apiKey };
+    } catch {
+      // No valid OAuth session either — fall through to the same
+      // "no key configured" behavior a missing API key already gets,
+      // surfaced with a clear message at tool-call time in getClient().
+    }
+  }
+
+  return { spidraApiKey: process.env.SPIDRA_API_KEY };
 }
 
 function getClient(session?: SessionData): SpidraClient {
@@ -234,6 +299,7 @@ const server = new FastMCP<SessionData>({
     "Every scraped URL costs credits (base 2 per URL plus AI tokens), so prefer the narrowest tool and smallest page counts that answer the question.",
   logger: new ConsoleLogger(),
   roots: { enabled: false },
+  ...(oauthProvider ? { auth: oauthProvider } : {}),
   authenticate,
   health: { enabled: true, message: "ok", path: "/health", status: 200 },
 });
