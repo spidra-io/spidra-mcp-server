@@ -23,7 +23,9 @@
     "spidra-mcp": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "scripts",
+    "img"
   ],
   "scripts": {
     "build": "tsup && shx chmod +x dist/index.js",
