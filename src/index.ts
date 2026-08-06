@@ -92,10 +92,17 @@ const oauthProvider = OAUTH_ENABLED
       clientSecret: process.env.MCP_OAUTH_CLIENT_SECRET!,
       authorizationEndpoint: `${process.env.SPIDRA_API_URL}/oauth/authorize`,
       tokenEndpoint: `${process.env.SPIDRA_API_URL}/oauth/token`,
-      // allowedRedirectUriPatterns intentionally left unset — fastmcp's
-      // default (loopback-only: http://localhost:*, http://127.0.0.1:*) is
-      // the right choice for CLI-style MCP clients; widening it is a CWE-601
-      // open-redirect risk per fastmcp's own source comments.
+      // fastmcp's default (loopback-only: http://localhost:*, http://127.0.0.1:*)
+      // covers Claude Code's CLI-style loopback redirect, but the hosted Claude
+      // surfaces (Claude.ai web, Desktop, mobile, Cowork) use a single fixed
+      // HTTPS callback instead — see https://claude.com/docs/connectors/building/authentication#callback-urls.
+      // Listed as an exact literal (no wildcard), so this doesn't widen the
+      // open-redirect surface beyond this one Anthropic-owned URL.
+      allowedRedirectUriPatterns: [
+        "http://localhost:*",
+        "http://127.0.0.1:*",
+        "https://claude.ai/api/mcp/auth_callback",
+      ],
     })
   : undefined;
 
