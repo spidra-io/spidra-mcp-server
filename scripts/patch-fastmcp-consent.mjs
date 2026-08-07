@@ -6,36 +6,52 @@
  * so we rewrite the generateConsentScreen() method in the dist file.
  * If the method signature changes in a future fastmcp version this script
  * will detect the mismatch and exit cleanly rather than corrupting the file.
+ *
+ * fastmcp's bundler names its chunk files with a content hash (e.g.
+ * chunk-OJG4XYXA.js), which changes on every fastmcp release — so we can't
+ * hardcode a filename. Instead we scan node_modules/fastmcp/dist for
+ * whichever chunk actually contains the target method.
  */
 
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const DIST = join(ROOT, "node_modules/fastmcp/dist/chunk-OJG4XYXA.js");
+const DIST_DIR = join(ROOT, "node_modules/fastmcp/dist");
 const LOGO_PATH = join(ROOT, "img/logo.png");
-
-// ── guards ────────────────────────────────────────────────────────────────────
-
-let content;
-try {
-  content = readFileSync(DIST, "utf8");
-} catch {
-  console.warn("patch-fastmcp-consent: dist file not found, skipping.");
-  process.exit(0);
-}
 
 const START_MARKER = "  generateConsentScreen(data) {";
 const END_MARKER = "  /**\n   * Sign consent data for cookie\n   */";
 
-const startIdx = content.indexOf(START_MARKER);
-const endIdx = content.indexOf(END_MARKER, startIdx);
+// ── locate the chunk that defines generateConsentScreen ────────────────────────
 
-if (startIdx === -1 || endIdx === -1) {
+let dirEntries;
+try {
+  dirEntries = readdirSync(DIST_DIR).filter((f) => f.endsWith(".js"));
+} catch {
+  console.warn("patch-fastmcp-consent: fastmcp dist directory not found, skipping.");
+  process.exit(0);
+}
+
+let DIST, content, startIdx, endIdx;
+for (const file of dirEntries) {
+  const path = join(DIST_DIR, file);
+  const text = readFileSync(path, "utf8");
+  const idx = text.indexOf(START_MARKER);
+  if (idx !== -1 && text.indexOf(END_MARKER, idx) !== -1) {
+    DIST = path;
+    content = text;
+    startIdx = idx;
+    endIdx = text.indexOf(END_MARKER, idx);
+    break;
+  }
+}
+
+if (!DIST) {
   console.warn(
-    "patch-fastmcp-consent: target method not found — already patched or fastmcp version changed. Skipping."
+    "patch-fastmcp-consent: target method not found in any dist chunk — already patched or fastmcp's internals changed. Skipping."
   );
   process.exit(0);
 }
