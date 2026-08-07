@@ -9,47 +9,63 @@
  *
  * fastmcp's bundler names its chunk files with a content hash (e.g.
  * chunk-OJG4XYXA.js), which changes on every fastmcp release — so we can't
- * hardcode a filename. Instead we scan node_modules/fastmcp/dist for
+ * hardcode a filename. Instead we scan fastmcp's dist directory for
  * whichever chunk actually contains the target method.
+ *
+ * Where fastmcp actually lives on disk also isn't fixed: npm may nest it
+ * under spidra-mcp's own node_modules, or hoist it up to the consuming
+ * project's top-level node_modules, depending on the wider dependency tree.
+ * We resolve it via Node's own module resolution (same algorithm `import
+ * "fastmcp"` uses at runtime) instead of assuming a fixed relative path.
  */
 
 import { readFileSync, writeFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const DIST_DIR = join(ROOT, "node_modules/fastmcp/dist");
 const LOGO_PATH = join(ROOT, "img/logo.png");
+
+const require = createRequire(import.meta.url);
+let DIST_DIR;
+try {
+  // Resolve the bare specifier (not a package.json subpath, which fastmcp's
+  // "exports" map blocks) — this walks node_modules exactly like a real
+  // `import "fastmcp"` would, correctly finding it whether nested or hoisted.
+  // The "require" condition lands on the .cjs build; we patch every dist
+  // file with a matching chunk below (both .js and .cjs), so this is only
+  // used to locate the directory, not the specific file that gets edited.
+  DIST_DIR = dirname(require.resolve("fastmcp"));
+} catch {
+  console.warn("patch-fastmcp-consent: fastmcp package not found, skipping.");
+  process.exit(0);
+}
 
 const START_MARKER = "  generateConsentScreen(data) {";
 const END_MARKER = "  /**\n   * Sign consent data for cookie\n   */";
 
-// ── locate the chunk that defines generateConsentScreen ────────────────────────
+// ── locate every dist chunk that defines generateConsentScreen ─────────────────
 
 let dirEntries;
 try {
-  dirEntries = readdirSync(DIST_DIR).filter((f) => f.endsWith(".js"));
+  dirEntries = readdirSync(DIST_DIR).filter((f) => f.endsWith(".js") || f.endsWith(".cjs"));
 } catch {
   console.warn("patch-fastmcp-consent: fastmcp dist directory not found, skipping.");
   process.exit(0);
 }
 
-let DIST, content, startIdx, endIdx;
+const targets = [];
 for (const file of dirEntries) {
   const path = join(DIST_DIR, file);
   const text = readFileSync(path, "utf8");
-  const idx = text.indexOf(START_MARKER);
-  if (idx !== -1 && text.indexOf(END_MARKER, idx) !== -1) {
-    DIST = path;
-    content = text;
-    startIdx = idx;
-    endIdx = text.indexOf(END_MARKER, idx);
-    break;
-  }
+  const startIdx = text.indexOf(START_MARKER);
+  const endIdx = text.indexOf(END_MARKER, startIdx);
+  if (startIdx !== -1 && endIdx !== -1) targets.push({ path, text, startIdx, endIdx });
 }
 
-if (!DIST) {
+if (targets.length === 0) {
   console.warn(
     "patch-fastmcp-consent: target method not found in any dist chunk — already patched or fastmcp's internals changed. Skipping."
   );
@@ -219,6 +235,8 @@ const newMethod = `  generateConsentScreen(data) {
 
 // ── apply ─────────────────────────────────────────────────────────────────────
 
-const patched = content.slice(0, startIdx) + newMethod + content.slice(endIdx);
-writeFileSync(DIST, patched, "utf8");
-console.log("✅  fastmcp consent screen patched with Spidra design.");
+for (const { path, text, startIdx, endIdx } of targets) {
+  const patched = text.slice(0, startIdx) + newMethod + text.slice(endIdx);
+  writeFileSync(path, patched, "utf8");
+}
+console.log(`✅  fastmcp consent screen patched with Spidra design (${targets.length} file(s)).`);
