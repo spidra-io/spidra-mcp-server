@@ -10,7 +10,7 @@
 
 The official [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for [Spidra](https://spidra.io).
 
-MCP is the standard that lets AI assistants use external tools. When you connect this server to an assistant like Claude Code, Claude Desktop, Cursor, Windsurf, or VS Code, the assistant gains the ability to scrape web pages, process lists of URLs, and crawl entire websites on its own. 
+MCP is the standard that lets AI assistants use external tools. When you connect this server to an assistant like Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, or Antigravity, the assistant gains the ability to scrape web pages, process lists of URLs, and crawl entire websites on its own. 
 
 All you have to do is describe what you want in plain language, and the assistant picks the right Spidra tool, runs it, and works with the extracted data directly in the conversation.
 
@@ -150,6 +150,23 @@ Add this to `~/.codeium/windsurf/mcp_config.json`:
 }
 ```
 
+#### Antigravity
+
+Add this to `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace-local). Note the field is `serverUrl`, not `url`/`httpUrl` — Antigravity rejects those field names for remote servers:
+
+```json
+{
+  "mcpServers": {
+    "spidra": {
+      "serverUrl": "https://mcp.spidra.io/mcp",
+      "headers": {
+        "Authorization": "Bearer spd_YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
 ## Local installation (stdio)
 
 Prefer to run the server yourself? Every setup below does the same thing: it tells your assistant to run `npx -y spidra-mcp` and hands the server your API key through an environment variable. 
@@ -235,6 +252,24 @@ To share the setup with your team instead, put the same `servers` block in a `.v
 ### Windsurf
 
 Add this to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "spidra": {
+      "command": "npx",
+      "args": ["-y", "spidra-mcp"],
+      "env": {
+        "SPIDRA_API_KEY": "spd_YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### Antigravity
+
+Add this to `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace-local):
 
 ```json
 {
@@ -687,6 +722,7 @@ Transient network failures and 5xx responses are retried automatically with back
 - **"No Spidra API key configured."** For local/stdio setups, the `SPIDRA_API_KEY` variable is not reaching the server — make sure it is inside the `env` block of the server entry, not at the top level of the config file. For the hosted endpoint, check your header name and value (below).
 - **Hosted endpoint returns a 401.** The header is missing, misnamed, or the key has been revoked. It must be exactly `Authorization: Bearer spd_...`, and the key must still exist under **Settings** > **API Keys** in your dashboard.
 - **OAuth login doesn't open a browser, or the client falls back to asking for a key.** Not every MCP client supports OAuth yet — use the API key method for that client instead. If a browser window did open but the flow failed partway through, retry; if it keeps failing, confirm you're logged into [app.spidra.io](https://app.spidra.io) in that browser.
+- **OAuth login fails with "Invalid or expired transaction" or similar, then the assistant reports no credentials found.** The login attempt was interrupted before it finished — usually from taking too long on the approve screen (the flow expires after 10 minutes) or retrying a stale login link. Remove and re-add the connector to start clean, and approve access promptly. Falls back to the API key method for that client if it keeps happening.
 - **A scrape "timed out."** The job is still running on the server and nothing is lost. The error includes the job ID, and the assistant will fetch the result with `spidra_check_scrape_status`. Bot-protected sites can take a couple of minutes.
 - **Results come back empty when using a schema.** Check the schema: every field you want must be defined with a type. An object with no properties gives the AI nothing to fill in.
 - **`npx` cannot find the package.** Make sure you are on Node 20 or newer and that your network allows access to the npm registry. This only applies to local/self-hosted setups — the hosted endpoint doesn't use `npx`.

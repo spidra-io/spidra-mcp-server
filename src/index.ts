@@ -93,15 +93,23 @@ const oauthProvider = OAUTH_ENABLED
       authorizationEndpoint: `${process.env.SPIDRA_API_URL}/oauth/authorize`,
       tokenEndpoint: `${process.env.SPIDRA_API_URL}/oauth/token`,
       // fastmcp's default (loopback-only: http://localhost:*, http://127.0.0.1:*)
-      // covers Claude Code's CLI-style loopback redirect, but the hosted Claude
-      // surfaces (Claude.ai web, Desktop, mobile, Cowork) use a single fixed
-      // HTTPS callback instead — see https://claude.com/docs/connectors/building/authentication#callback-urls.
-      // Listed as an exact literal (no wildcard), so this doesn't widen the
-      // open-redirect surface beyond this one Anthropic-owned URL.
+      // covers CLI-style loopback clients (Claude Code, Cursor desktop, VS Code
+      // desktop, Windsurf), but several clients proxy the OAuth callback through
+      // their own hosted domain instead of a local port. Each is listed as an
+      // exact literal (no wildcard), so this doesn't widen the open-redirect
+      // surface beyond these specific, vendor-documented URLs:
+      //   - Claude (web/Desktop/mobile/Cowork): https://claude.com/docs/connectors/building/authentication#callback-urls
+      //   - Cursor (web/cloud agents):          https://cursor.com/docs/mcp
+      //   - VS Code (vscode.dev / web):         https://code.visualstudio.com/api/extension-guides/ai/mcp
+      //   - Antigravity:                        https://antigravity.google/docs/mcp
       allowedRedirectUriPatterns: [
         "http://localhost:*",
         "http://127.0.0.1:*",
         "https://claude.ai/api/mcp/auth_callback",
+        "https://www.cursor.com/agents/mcp/oauth/callback",
+        "https://vscode.dev/redirect",
+        "https://insiders.vscode.dev/redirect",
+        "https://antigravity.google/oauth-callback",
       ],
     })
   : undefined;
