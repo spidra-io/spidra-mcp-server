@@ -2,18 +2,18 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.spidra-io/spidra-mcp-server",
   "title": "Spidra",
-  "description": "AI-powered web scraping and crawling: extract structured data, batch-process URLs, crawl sites.",
+  "description": "AI-powered web search, scraping, and crawling: extract structured data, batch URLs, crawl sites.",
   "repository": {
     "url": "https://github.com/spidra-io/spidra-mcp-server",
     "source": "github"
   },
-  "version": "0.2.0",
+  "version": "0.3.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "spidra-mcp",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "transport": {
         "type": "stdio"
       },

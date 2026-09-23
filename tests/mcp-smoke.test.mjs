@@ -35,7 +35,6 @@ const fakeApi = createServer((req, res) => {
         status: "completed",
         result: {
           content: { headline: "Fake headline" },
-          data: [{ url: "https://example.com", success: true }],
           screenshots: [],
           ai_extraction_failed: false,
           stats: { durationMs: 100, captchaSolvedCount: 0, inputTokens: 10, outputTokens: 5, totalTokens: 15 },
@@ -51,6 +50,26 @@ const fakeApi = createServer((req, res) => {
     }
     if (req.method === "POST" && req.url === "/api/batch/scrape") {
       return send(202, { status: "queued", batchId: "batch-1", total: 2 });
+    }
+    if (req.method === "POST" && req.url === "/api/batch/scrape/batch-1/retry") {
+      return send(200, { retriedCount: 1 });
+    }
+    if (req.method === "POST" && req.url === "/api/crawl/crawl-xyz/retry/page-1") {
+      return send(200, { success: true, data: { title: "Retried" }, tokensUsed: 50, creditsUsed: 1, message: "ok" });
+    }
+    if (req.method === "POST" && req.url === "/api/search") {
+      return send(202, { status: "queued", jobId: "search-1" });
+    }
+    if (req.method === "GET" && req.url === "/api/search/search-1") {
+      return send(200, {
+        status: "completed",
+        result: {
+          success: true,
+          data: { web: [{ title: "Fake result", url: "https://example.com", position: 1 }] },
+          stats: { durationMs: 900 },
+        },
+        error: null,
+      });
     }
     send(404, { status: "error", message: "not found" });
   });
@@ -155,7 +174,7 @@ test("stdio stays clean — no log noise corrupted the JSON-RPC stream", async (
   assert.ok(client);
 });
 
-test("tools/list exposes all 12 tools with annotations", async () => {
+test("tools/list exposes all 16 tools with annotations", async () => {
   const res = await client.request("tools/list");
   const tools = res.result.tools;
   const names = tools.map((t) => t.name).sort();
@@ -166,16 +185,23 @@ test("tools/list exposes all 12 tools with annotations", async () => {
     "spidra_check_batch_status",
     "spidra_check_crawl_status",
     "spidra_check_scrape_status",
+    "spidra_check_search_status",
     "spidra_crawl",
     "spidra_crawl_extract",
     "spidra_crawl_pages",
+    "spidra_retry_batch",
+    "spidra_retry_crawl_page",
     "spidra_scrape",
     "spidra_scrape_logs",
+    "spidra_search",
     "spidra_usage",
   ]);
   const scrape = tools.find((t) => t.name === "spidra_scrape");
   assert.equal(scrape.annotations.readOnlyHint, true);
   assert.match(scrape.description, /1-3 known URLs/);
+  const search = tools.find((t) => t.name === "spidra_search");
+  assert.equal(search.annotations.readOnlyHint, true);
+  assert.match(search.description, /WAITS for the result/);
 });
 
 test("spidra_scrape submits, polls, and returns extracted content", async () => {
@@ -216,6 +242,34 @@ test("spidra_batch_scrape returns a batchId and polling instructions", async () 
   const text = result.content[0].text;
   assert.match(text, /batch-1/);
   assert.match(text, /spidra_check_batch_status/);
+});
+
+test("spidra_search submits, waits, and returns web results", async () => {
+  const result = await client.callTool("spidra_search", {
+    query: "hello world",
+    sources: ["web"],
+  });
+  assert.equal(result.isError ?? false, false);
+  const text = result.content[0].text;
+  assert.match(text, /Fake result/);
+
+  const submit = recorded.find((r) => r.method === "POST" && r.url === "/api/search");
+  assert.ok(submit, "search was submitted to the API");
+  const submitted = JSON.parse(submit.body);
+  assert.equal(submitted.query, "hello world");
+  assert.deepEqual(submitted.sources, ["web"]);
+});
+
+test("spidra_retry_batch retries failed items", async () => {
+  const result = await client.callTool("spidra_retry_batch", { batchId: "batch-1" });
+  assert.equal(result.isError ?? false, false);
+  assert.match(result.content[0].text, /retriedCount/);
+});
+
+test("spidra_retry_crawl_page retries one page", async () => {
+  const result = await client.callTool("spidra_retry_crawl_page", { jobId: "crawl-xyz", pageId: "page-1" });
+  assert.equal(result.isError ?? false, false);
+  assert.match(result.content[0].text, /Retried/);
 });
 
 test("spidra_usage returns usage rows", async () => {
