@@ -310,7 +310,7 @@ Once connected, just ask for web data in normal language. You never call the too
 
 > "Here are 12 product URLs. Get me the name, price, and rating for each one as a table."
 
-> "Crawl the first 10 pages of docs.example.com and summarize what the product does."
+> "Crawl the first 10 pages of docs.spidra.io and summarize what the product does."
 
 If the assistant answers with real data from those pages, everything is working.
 
@@ -444,7 +444,7 @@ The important behavior to understand: when you pass more than one URL, their con
 
 **Prompt example:**
 
-> "Get the product name, price, and description from https://example.com/product."
+> "Get the product name, price, and description from https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html."
 
 **Usage example (structured extraction with a schema):**
 
@@ -452,7 +452,7 @@ The important behavior to understand: when you pass more than one URL, their con
 {
   "name": "spidra_scrape",
   "arguments": {
-    "urls": ["https://example.com/product"],
+    "urls": ["https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"],
     "prompt": "Extract the product information",
     "output": "json",
     "schema": {
@@ -474,7 +474,7 @@ The important behavior to understand: when you pass more than one URL, their con
 {
   "name": "spidra_scrape",
   "arguments": {
-    "urls": ["https://competitor-a.com/pricing", "https://competitor-b.com/pricing"],
+    "urls": ["https://stripe.com/pricing", "https://www.paddle.com/pricing"],
     "prompt": "Compare the plans on these two pages and list the differences in price and features",
     "output": "json"
   }
@@ -487,7 +487,7 @@ The important behavior to understand: when you pass more than one URL, their con
 {
   "name": "spidra_scrape",
   "arguments": {
-    "urls": ["https://example.com/blog/some-article"]
+    "urls": ["https://posthog.com/tutorials/web-redact-properties"]
   }
 }
 ```
@@ -550,9 +550,9 @@ This tool returns immediately with a `batchId`. It does not wait, because a 50-U
   "name": "spidra_batch_scrape",
   "arguments": {
     "urls": [
-      "https://shop.example.com/product/1",
-      "https://shop.example.com/product/2",
-      "https://shop.example.com/product/3"
+      "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+      "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
+      "https://books.toscrape.com/catalogue/soumission_998/index.html"
     ],
     "prompt": "Extract the product name, price, and star rating",
     "output": "json",
@@ -645,7 +645,7 @@ Two instructions control a crawl, and keeping them straight matters:
 
 **Prompt example:**
 
-> "Crawl example.com/blog, follow only the article links, and get me each post's title, author, and date. Cap it at 10 pages."
+> "Crawl spidra.io/blog, follow only the article links, and get me each post's title, author, and date. Cap it at 10 pages."
 
 **Usage example:**
 
@@ -653,7 +653,7 @@ Two instructions control a crawl, and keeping them straight matters:
 {
   "name": "spidra_crawl",
   "arguments": {
-    "baseUrl": "https://example.com/blog",
+    "baseUrl": "https://spidra.io/blog",
     "crawlInstruction": "Follow blog post links only, skip tag and category pages",
     "transformInstruction": "Extract the title, author, and publish date",
     "maxPages": 10

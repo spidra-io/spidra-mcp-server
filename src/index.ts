@@ -364,7 +364,7 @@ Behavior notes:
 {
   "name": "spidra_scrape",
   "arguments": {
-    "urls": ["https://example.com/pricing"],
+    "urls": ["https://spidra.io/pricing"],
     "prompt": "Extract all pricing plans with name, price, and included features",
     "output": "json"
   }
@@ -680,7 +680,7 @@ Behavior notes:
 {
   "name": "spidra_crawl",
   "arguments": {
-    "baseUrl": "https://example.com/blog",
+    "baseUrl": "https://spidra.io/blog",
     "crawlInstruction": "Follow blog post links only, skip tag and category pages",
     "transformInstruction": "Extract the title, author, and publish date",
     "maxPages": 10
