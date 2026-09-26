@@ -26,6 +26,15 @@ const fakeApi = createServer((req, res) => {
     };
 
     if (req.method === "POST" && req.url === "/api/scrape") {
+      const submitted = JSON.parse(body);
+      if (submitted.urls?.[0]?.url === "https://thin-then-good.example.com") {
+        // Simulates the auto fast-mode fallback: the first (fast, no proxy)
+        // attempt comes back thin, the retry (default mode, with proxy)
+        // comes back with real content.
+        return submitted.scrapeMode === "fast"
+          ? send(202, { status: "queued", jobId: "job-thin" })
+          : send(202, { status: "queued", jobId: "job-good" });
+      }
       return send(202, { status: "queued", jobId: "job-abc" });
     }
     if (req.method === "GET" && req.url === "/api/scrape/job-abc") {
@@ -42,6 +51,32 @@ const fakeApi = createServer((req, res) => {
         error: null,
       });
     }
+    if (req.method === "GET" && req.url === "/api/scrape/job-thin") {
+      return send(200, {
+        status: "completed",
+        result: {
+          content: "barely anything",
+          data: [{ url: "https://thin-then-good.example.com", success: true, lowContent: true }],
+          screenshots: [],
+          ai_extraction_failed: false,
+          stats: { durationMs: 50, captchaSolvedCount: 0, inputTokens: 5, outputTokens: 2, totalTokens: 7 },
+        },
+        error: null,
+      });
+    }
+    if (req.method === "GET" && req.url === "/api/scrape/job-good") {
+      return send(200, {
+        status: "completed",
+        result: {
+          content: "the real page content",
+          data: [{ url: "https://thin-then-good.example.com", success: true, lowContent: false }],
+          screenshots: [],
+          ai_extraction_failed: false,
+          stats: { durationMs: 900, captchaSolvedCount: 0, inputTokens: 40, outputTokens: 10, totalTokens: 50 },
+        },
+        error: null,
+      });
+    }
     if (req.method === "POST" && req.url === "/api/crawl") {
       return send(202, { status: "queued", jobId: "crawl-xyz" });
     }
@@ -49,7 +84,25 @@ const fakeApi = createServer((req, res) => {
       return send(200, { status: "ok", data: [{ label: "Mon", date: "2026-07-13", requests: 3, credits: 6, tokens: 100, crawls: 0, captchas: 0, latency: 5 }] });
     }
     if (req.method === "POST" && req.url === "/api/batch/scrape") {
+      const submitted = JSON.parse(body);
+      if (submitted.urls?.includes("https://wait-me.example.com/a")) {
+        return send(202, { status: "queued", batchId: "batch-wait", total: submitted.urls.length });
+      }
       return send(202, { status: "queued", batchId: "batch-1", total: 2 });
+    }
+    if (req.method === "GET" && req.url === "/api/batch/scrape/batch-wait") {
+      return send(200, {
+        status: "completed",
+        totalUrls: 2,
+        completedCount: 2,
+        failedCount: 0,
+        createdAt: "2026-09-26T00:00:00.000Z",
+        finishedAt: "2026-09-26T00:00:05.000Z",
+        items: [
+          { uuid: "i1", url: "https://wait-me.example.com/a", jobId: "j1", status: "completed", result: "content a", creditsUsed: 1, startedAt: null, finishedAt: null, screenshotUrl: null },
+          { uuid: "i2", url: "https://wait-me.example.com/b", jobId: "j2", status: "completed", result: "content b", creditsUsed: 1, startedAt: null, finishedAt: null, screenshotUrl: null },
+        ],
+      });
     }
     if (req.method === "POST" && req.url === "/api/batch/scrape/batch-1/retry") {
       return send(200, { retriedCount: 1 });
@@ -221,6 +274,48 @@ test("spidra_scrape submits, polls, and returns extracted content", async () => 
   const submitted = JSON.parse(submit.body);
   assert.equal(submitted.urls[0].url, "https://example.com");
   assert.equal(submitted.output, "json");
+  assert.equal(submitted.scrapeMode, "fast", "defaults to the fast attempt when scrapeMode isn't set");
+  assert.equal(submitted.useProxy, false, "defaults to no proxy on the fast attempt");
+});
+
+test("spidra_scrape auto-escalates to browser+proxy when the fast attempt is thin", async () => {
+  const result = await client.callTool("spidra_scrape", {
+    url: "https://thin-then-good.example.com",
+    prompt: "Extract the article",
+  });
+  assert.equal(result.isError ?? false, false);
+  const text = result.content[0].text;
+  assert.match(text, /the real page content/);
+  assert.match(text, /automatically retried/);
+
+  const submits = recorded.filter(
+    (r) => r.method === "POST" && r.url === "/api/scrape" && JSON.parse(r.body).urls?.[0]?.url === "https://thin-then-good.example.com"
+  );
+  assert.equal(submits.length, 2, "fast attempt, then a browser+proxy retry");
+  const [first, second] = submits.map((r) => JSON.parse(r.body));
+  assert.equal(first.scrapeMode, "fast");
+  assert.equal(first.useProxy, false);
+  assert.equal(second.scrapeMode, "default");
+  assert.equal(second.useProxy, true);
+});
+
+test("spidra_scrape does not auto-escalate when scrapeMode or useProxy is explicit", async () => {
+  const result = await client.callTool("spidra_scrape", {
+    url: "https://thin-then-good.example.com",
+    prompt: "Extract the article",
+    scrapeMode: "fast",
+  });
+  assert.equal(result.isError ?? false, false);
+  const text = result.content[0].text;
+  assert.match(text, /barely anything/, "returns the thin result as-is, no automatic retry");
+
+  const submits = recorded.filter(
+    (r) =>
+      r.method === "POST" &&
+      r.url === "/api/scrape" &&
+      JSON.parse(r.body).urls?.[0]?.url === "https://thin-then-good.example.com"
+  );
+  assert.equal(submits.length, 3, "no new submit beyond the previous test's two plus this one");
 });
 
 test("spidra_crawl returns a jobId and polling instructions without waiting", async () => {
@@ -242,6 +337,20 @@ test("spidra_batch_scrape returns a batchId and polling instructions", async () 
   const text = result.content[0].text;
   assert.match(text, /batch-1/);
   assert.match(text, /spidra_check_batch_status/);
+});
+
+test("spidra_batch_scrape with wait:true returns finished results directly for a small batch", async () => {
+  const result = await client.callTool("spidra_batch_scrape", {
+    urls: ["https://wait-me.example.com/a", "https://wait-me.example.com/b"],
+    prompt: "Extract the title",
+    wait: true,
+  });
+  assert.equal(result.isError ?? false, false);
+  const text = result.content[0].text;
+  assert.match(text, /"status": "completed"/);
+  assert.match(text, /content a/);
+  assert.match(text, /content b/);
+  assert.doesNotMatch(text, /spidra_check_batch_status/, "no polling instructions when the result came back inline");
 });
 
 test("spidra_search submits, waits, and returns web results", async () => {

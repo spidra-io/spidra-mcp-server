@@ -353,7 +353,7 @@ server.addTool({
     destructiveHint: false,
   },
   description: `
-Scrape one known URL and extract its content with AI. This tool WAITS for the result (typically 10-60 seconds) and returns the extracted content directly.
+Scrape one known URL and extract its content with AI. This tool WAITS for the result (typically a couple seconds for ordinary pages, up to 60 for hard ones) and returns the extracted content directly.
 
 **Best for:** one known URL.
 **Not for:** discovering pages on a site (use spidra_crawl), or more than one URL, even just to compare two pages. Use spidra_batch_scrape for that instead, so each URL gets its own clean, attributable result rather than one answer that risks blending or misattributing facts between sources.
@@ -362,8 +362,8 @@ Behavior notes:
 - Omit "prompt" and "schema" to get the raw page content as markdown.
 - Pass "prompt" for free-form AI extraction, and add "schema" when you need a guaranteed JSON shape. Define every field in the schema, untyped objects come back empty.
 - Use "actions" to interact with the page first (dismiss cookie banners, type into search boxes, scroll, or loop over elements with forEach).
-- Use "useProxy" with "proxyCountry" for geo-restricted or bot-protected sites.
-- Costs: 1 credit per URL plus AI tokens; CAPTCHA solves cost 5 credits each.
+- By default (when you don't set "scrapeMode" or "useProxy" yourself), this tries a fast HTTP-only fetch first, no browser, no proxy, and only pays for a full browser render with a proxy if that first attempt's content came back suspiciously thin. Most ordinary pages finish in a couple seconds this way; a bot-protected page costs a second attempt (2 credits total instead of 1) but still resolves automatically. Set "scrapeMode" or "useProxy" yourself to skip this and go straight to a specific mode, e.g. for a site you already know needs a proxy.
+- Costs: 1 credit per URL plus AI tokens (2 if the automatic fallback above kicks in); CAPTCHA solves cost 5 credits each.
 
 **Usage example:**
 \`\`\`json
@@ -396,37 +396,64 @@ Behavior notes:
     cookies: z.string().optional().describe('Raw Cookie header string for pages behind a login, e.g. "session=abc"'),
     screenshot: z.boolean().optional().describe("Capture a viewport screenshot (URL returned)"),
     extractContentOnly: z.boolean().optional().describe("Strip navigation/ads/boilerplate before extraction"),
-    scrapeMode: z.enum(["default", "fast"]).optional().describe('"fast" = HTTP only (no browser), cheaper but less capable'),
+    scrapeMode: z.enum(["default", "fast"]).optional().describe('"fast" = HTTP only (no browser), cheaper but less capable. Leave unset to let this tool pick automatically (fast first, falls back to a full browser+proxy attempt only if needed).'),
     ...proxyParams,
   }),
   execute: async (args, { session, log }) => {
     const client = getClient(session);
     log.info("Scraping", { url: args.url });
     return run(async () => {
-      const result = await client.scrape(
-        {
-          urls: [
-            {
-              url: args.url,
-              ...(args.actions ? { actions: args.actions as never } : {}),
-              ...(args.instruction ? { instruction: args.instruction } : {}),
-            },
-          ],
-          prompt: args.prompt ?? "",
-          ...(args.output ? { output: args.output } : {}),
-          ...(args.schema ? { schema: args.schema } : {}),
-          ...(args.cookies ? { cookies: args.cookies } : {}),
-          ...(args.screenshot != null ? { screenshot: args.screenshot } : {}),
-          ...(args.extractContentOnly != null ? { extractContentOnly: args.extractContentOnly } : {}),
-          ...(args.useProxy != null ? { useProxy: args.useProxy } : {}),
-          ...(args.proxyCountry ? { proxyCountry: args.proxyCountry } : {}),
-          ...(args.scrapeMode ? { scrapeMode: args.scrapeMode } : {}),
-        } as never,
-        { timeout: 240_000 }
-      );
+      const runScrape = (scrapeMode: "default" | "fast", useProxy: boolean) =>
+        client.scrape(
+          {
+            urls: [
+              {
+                url: args.url,
+                ...(args.actions ? { actions: args.actions as never } : {}),
+                ...(args.instruction ? { instruction: args.instruction } : {}),
+              },
+            ],
+            prompt: args.prompt ?? "",
+            ...(args.output ? { output: args.output } : {}),
+            ...(args.schema ? { schema: args.schema } : {}),
+            ...(args.cookies ? { cookies: args.cookies } : {}),
+            ...(args.screenshot != null ? { screenshot: args.screenshot } : {}),
+            ...(args.extractContentOnly != null ? { extractContentOnly: args.extractContentOnly } : {}),
+            useProxy,
+            ...(args.proxyCountry ? { proxyCountry: args.proxyCountry } : {}),
+            scrapeMode,
+          } as never,
+          { timeout: 240_000 }
+        );
+
+      // Auto fast-mode fallback: only when the caller didn't already pick a
+      // scrapeMode/useProxy explicitly, since that means they know what they
+      // want (e.g. a known-hard site). Otherwise, try the cheap HTTP-only
+      // path first (no browser, no proxy) -- confirmed live (2026-09-26) it
+      // produces near-identical content to full browser mode for ordinary
+      // article-style pages in a fraction of the time (~1s vs ~9s in one
+      // real test). Only escalate to a full browser+proxy attempt if the
+      // fast attempt's own content came back suspiciously thin (lowContent),
+      // which usually means real bot protection rather than a page that just
+      // needs JS -- the backend already retries fast-mode-needs-JS cases
+      // internally before this ever sees the result.
+      const autoMode = args.scrapeMode === undefined && args.useProxy === undefined;
+      let result = await runScrape(autoMode ? "fast" : args.scrapeMode ?? "default", autoMode ? false : args.useProxy ?? false);
+      let usedFallback = false;
+
+      if (autoMode && result.data?.[0]?.lowContent) {
+        usedFallback = true;
+        result = await runScrape("default", true);
+      }
+
       return asText({
         content: result.content,
         screenshots: result.screenshots,
+        extractionEmpty: result.extraction_empty || undefined,
+        lowContent: result.data?.[0]?.lowContent || undefined,
+        ...(usedFallback
+          ? { note: "Initial fast attempt returned thin content, automatically retried with full browser rendering and a proxy." }
+          : {}),
         stats: result.stats,
       });
     });
@@ -579,10 +606,11 @@ server.addTool({
     destructiveHint: false,
   },
   description: `
-Scrape a list of 2-50 known URLs in parallel with the same extraction prompt/schema. Each URL is processed INDEPENDENTLY and gets its OWN result -- this is the tool for anything involving more than one URL, spidra_scrape only ever takes one. This tool returns IMMEDIATELY with a batchId, it does not wait.
+Scrape a list of 2-50 known URLs in parallel with the same extraction prompt/schema. Each URL is processed INDEPENDENTLY and gets its OWN result -- this is the tool for anything involving more than one URL, spidra_scrape only ever takes one. By default this returns IMMEDIATELY with a batchId, it does not wait.
 
 **Best for:** running the same extraction on each of many similar pages (product pages, listings, articles) where you need separate data per URL, even for just 2 URLs.
 **Workflow:** call this, then poll spidra_check_batch_status with the batchId every 10-15 seconds until the batch reaches a terminal state. Do NOT resubmit while a batch is pending.
+- For 10 URLs or fewer, set "wait" to true to get the finished results back directly from this call instead of polling, this can still take a couple minutes for a slow batch. Above 10 URLs "wait" is ignored and the normal batchId is returned, since waiting on a large batch would just tie up this call for as long as the slowest item takes anyway.
 
 Costs: 1 credit per URL plus AI tokens. Failed items can be retried with spidra_retry_batch, or the whole batch cancelled with spidra_cancel_batch (credits for unprocessed items are refunded).
 `,
@@ -594,13 +622,14 @@ Costs: 1 credit per URL plus AI tokens. Failed items can be retried with spidra_
     cookies: z.string().optional(),
     extractContentOnly: z.boolean().optional(),
     scrapeMode: z.enum(["default", "fast"]).optional(),
+    wait: z.boolean().optional().describe("For batches of 10 URLs or fewer, wait and return the finished results directly instead of a batchId to poll. Ignored above 10 URLs."),
     ...proxyParams,
   }),
   execute: async (args, { session, log }) => {
     const client = getClient(session);
     log.info("Submitting batch", { count: args.urls.length });
     return run(async () => {
-      const queued = await client.startBatchScrape({
+      const params = {
         urls: args.urls,
         prompt: args.prompt ?? "",
         ...(args.output ? { output: args.output } : {}),
@@ -610,7 +639,20 @@ Costs: 1 credit per URL plus AI tokens. Failed items can be retried with spidra_
         ...(args.useProxy != null ? { useProxy: args.useProxy } : {}),
         ...(args.proxyCountry ? { proxyCountry: args.proxyCountry } : {}),
         ...(args.scrapeMode ? { scrapeMode: args.scrapeMode } : {}),
-      } as never);
+      } as never;
+
+      if (args.wait && args.urls.length <= 10) {
+        // client.batchScrape() submits then polls to completion client-side --
+        // proven, already-published code, reused as-is rather than adding a
+        // second wait mechanism at this layer. A timeout here surfaces as a
+        // SpidraTimeoutError, which run()/toToolError already turn into a
+        // helpful "still running, poll spidra_check_batch_status with this
+        // batchId" message, so a slow batch degrades gracefully either way.
+        const finished = await client.batchScrape(params, { timeout: 180_000 });
+        return asText(finished);
+      }
+
+      const queued = await client.startBatchScrape(params);
       return asText({
         batchId: queued.batchId,
         total: queued.total,
