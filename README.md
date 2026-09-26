@@ -342,7 +342,7 @@ The first question is whether you already know the URL:
 
 | Tool | Best for | Waits or polls? |
 |---|---|---|
-| `spidra_search` | Finding pages, news, images, or videos for a query | Waits, returns the result directly |
+| `spidra_search` | Finding pages, news, images, videos, papers, or GitHub issues/PRs for a query | Waits, returns the result directly |
 | `spidra_check_search_status` | Re-checking a search that outlived its wait window (rare) | Instant lookup |
 | `spidra_scrape` | One combined answer from 1 to 3 known URLs | Waits, returns the result directly |
 | `spidra_check_scrape_status` | Re-checking a scrape that outlived its wait window | Instant lookup |
@@ -376,6 +376,7 @@ Runs a real search query and returns structured results: titles, links, descript
 - Finding pages when you don't already know the URL
 - Checking what's out there before deciding what to scrape
 - News, image, or video results, not just web pages
+- Academic papers (`research`: arXiv, PubMed, bioRxiv, medRxiv) or GitHub issues/PRs (`developer`)
 
 **Not recommended for:**
 
@@ -400,9 +401,12 @@ Runs a real search query and returns structured results: titles, links, descript
 
 **Other options worth knowing:**
 
-- `sources`: which result types to fetch, any of `web`, `news`, `images`, `videos` (default: just `web`). Each source runs independently, one coming back empty doesn't affect the others.
+- `sources`: which result types to fetch, any of `web`, `news`, `images`, `videos`, `research`, `developer` (default: just `web`). Each source runs independently, one coming back empty doesn't affect the others. `research`/`developer` don't honor `includeDomains`/`excludeDomains`/`filetype`.
+- `pageTokens`: need more than one page of a source's results? Pass that source's token from a prior response's `nextPageTokens` back here (e.g. `{"web": "<token>"}`) to fetch the next page. Rank numbering continues across pages (11, 12, ... after a first page of 10) rather than restarting.
+- `timeRange`: restrict results to a recency window (`hour`/`day`/`week`/`month`/`year`). Support varies by which engine actually answers; an unsupported window is just ignored, never an error.
+- `filetype`: `"pdf"` restricts web results to PDF files.
 - `includeDomains` / `excludeDomains`: restrict web results to, or keep them away from, specific domains. Pass one or the other, never both.
-- `scrapeOptions`: opt-in, also fetches each web result's actual page content (clean markdown) in this same call, no separate `spidra_scrape` step needed. This makes the call take as long as its slowest scraped page instead of the usual few seconds, and costs the normal per-page scrape credits on top of the search. A result that fails to scrape is simply left without markdown, not an error.
+- `scrapeOptions`: opt-in, also fetches each web result's actual page content (markdown only, no screenshot option here, that's what `spidra_scrape` is for) in this same call, no separate `spidra_scrape` step needed. This makes the call take as long as its slowest scraped page instead of the usual few seconds, and costs the normal per-page scrape credits on top of the search. A result that fails to scrape is simply left without markdown, not an error.
 
 **Returns:** results grouped by requested source, plus `stats`. If the wait window is exceeded (rare, only realistic with `scrapeOptions` on many results), the job keeps running and the error hands the assistant the job ID to check with `spidra_check_search_status`.
 
@@ -780,7 +784,7 @@ Reports the account's request, credit, and token usage broken down by day or wee
 
 ## Credits and how this server protects them
 
-Every scraped URL costs credits: a base of 1 credit per URL, plus AI tokens when extraction runs, plus 5 credits per CAPTCHA solved. A plain search costs a small amount based on how many sources you requested, not how many results came back; turning on `scrapeOptions` bills each fetched result at the normal scrape rate on top of that. Agent loops can burn through credits quickly if the tools let them, so this server is deliberately built to prevent that:
+Every scraped URL costs credits: a base of 1 credit per URL, plus AI tokens when extraction runs, plus 5 credits per CAPTCHA solved. A plain search costs 1 credit per 10 results actually returned, per source, rounded up (10 web results is 1 credit, 15 is 2, a source that comes back empty is free); requesting more sources or a higher `limit` only costs more if it actually delivers more results. Turning on `scrapeOptions` bills each fetched result at the normal scrape rate on top of that. Agent loops can burn through credits quickly if the tools let them, so this server is deliberately built to prevent that:
 
 - The tool descriptions steer the assistant toward the cheapest tool that answers the question, and tell it to keep `maxPages` small.
 - Long-running jobs return a job ID with explicit polling instructions, so the assistant never resubmits a job that is still running.

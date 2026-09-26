@@ -260,6 +260,24 @@ test("spidra_search submits, waits, and returns web results", async () => {
   assert.deepEqual(submitted.sources, ["web"]);
 });
 
+test("spidra_search forwards research/developer sources, pageTokens, timeRange, and filetype", async () => {
+  const result = await client.callTool("spidra_search", {
+    query: "transformer attention",
+    sources: ["research", "developer"],
+    pageTokens: { web: "opaque-token" },
+    timeRange: "month",
+    filetype: "pdf",
+  });
+  assert.equal(result.isError ?? false, false);
+
+  const submits = recorded.filter((r) => r.method === "POST" && r.url === "/api/search");
+  const submitted = JSON.parse(submits[submits.length - 1].body);
+  assert.deepEqual(submitted.sources, ["research", "developer"]);
+  assert.deepEqual(submitted.pageTokens, { web: "opaque-token" });
+  assert.equal(submitted.timeRange, "month");
+  assert.equal(submitted.filetype, "pdf");
+});
+
 test("spidra_retry_batch retries failed items", async () => {
   const result = await client.callTool("spidra_retry_batch", { batchId: "batch-1" });
   assert.equal(result.isError ?? false, false);

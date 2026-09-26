@@ -175,7 +175,7 @@ function getClient(session?: SessionData): SpidraClient {
       "No Spidra credentials found. Log in with OAuth (supported clients prompt for this " +
         "automatically on /mcp or first connect), or set the SPIDRA_API_KEY environment " +
         "variable / send an Authorization: Bearer header with a key from https://app.spidra.io " +
-        "under Settings > API Keys."
+        "under API Keys."
     );
   }
   return new SpidraClient({
@@ -458,14 +458,17 @@ server.addTool({
   description: `
 Run a real search query and get back structured results (titles, links, descriptions, thumbnails), the same data a search engine itself would show. This tool WAITS for the result and returns it directly.
 
-**Best for:** finding pages when you don't already know the URL, checking what's out there before deciding what to scrape, or getting news/image/video results.
+**Best for:** finding pages when you don't already know the URL, checking what's out there before deciding what to scrape, getting news/image/video results, or finding academic papers (research) / GitHub issues and PRs (developer).
 **Not for:** a URL you already know (use spidra_scrape directly, it's cheaper and gives you AI extraction/schemas that search doesn't).
 
 Behavior notes:
-- Only "web" results come back unless you add "sources". Each source runs independently, one being empty doesn't affect the others.
+- Only "web" results come back unless you add "sources". Each source runs independently, one being empty doesn't affect the others. "research" covers arXiv/PubMed/bioRxiv/medRxiv; "developer" covers GitHub issues and PRs; neither honors includeDomains/excludeDomains/filetype.
 - Use "includeDomains" or "excludeDomains" (never both) to restrict results to or away from specific sites.
+- Need more results than one call returned? Pass that source's token from the previous response's "nextPageTokens" back as "pageTokens" (e.g. \`{"web": "<token>"}\`) to fetch the next page -- results continue the same rank numbering (11, 12, ... after a first page of 10), they don't restart at 1. A source with no "nextPageTokens" entry has no more pages.
 - Add "scrapeOptions" to also fetch each web result's actual page content (clean markdown) in the SAME call, no separate spidra_scrape step needed. This makes the call take as long as its slowest scraped page (not the usual few seconds), and costs the normal per-page scrape credits on top of the search. A result that fails to scrape is just left without markdown, not an error.
 - Want AI extraction, a schema, or a screenshot instead of plain markdown from one specific result? Scrape that URL directly with spidra_scrape.
+
+**Costs:** 1 credit per 10 results actually returned, per source, rounded up (10 web results is 1 credit, 15 is 2, a source that returns nothing is free). Requesting more sources or a higher "limit" only costs more if it actually delivers more results.
 
 **Usage example:**
 \`\`\`json
@@ -483,10 +486,18 @@ Behavior notes:
   parameters: z.object({
     query: z.string().describe("What to search for"),
     sources: z
-      .array(z.enum(["web", "news", "images", "videos"]))
+      .array(z.enum(["web", "news", "images", "videos", "research", "developer"]))
       .optional()
-      .describe('Which result types to fetch (default: ["web"])'),
+      .describe('Which result types to fetch (default: ["web"]). "research" = arXiv/PubMed/bioRxiv/medRxiv papers, "developer" = GitHub issues/PRs.'),
     limit: z.number().min(1).max(20).optional().describe("Results per source, 1-20 (default 10)"),
+    pageTokens: z
+      .record(z.string(), z.string())
+      .optional()
+      .describe('Per-source continuation token(s) from a prior response\'s "nextPageTokens", to fetch that source\'s next page (e.g. {"web": "<token>"}). Falls back to a fresh search for that source if a token is stale.'),
+    timeRange: z
+      .enum(["hour", "day", "week", "month", "year"])
+      .optional()
+      .describe("Restrict results to a recency window. Support varies by which engine answers -- an unsupported window is just ignored, never an error."),
     country: z.string().optional().describe('Two-letter country code, or "global"/"eu"/"asia", for localized results'),
     includeDomains: z
       .array(z.string())
@@ -496,9 +507,10 @@ Behavior notes:
       .array(z.string())
       .optional()
       .describe("Keep web results from these domains out. Mutually exclusive with includeDomains."),
+    filetype: z.enum(["pdf"]).optional().describe("Restrict web results to PDF files."),
     scrapeOptions: z
       .object({
-        formats: z.array(z.enum(["markdown", "screenshot"])).min(1),
+        formats: z.array(z.enum(["markdown"])).min(1).describe('Markdown-only for search. Want a screenshot of a specific result instead? Use spidra_scrape on that URL.'),
         maxResults: z.number().min(1).max(20).optional().describe("Cap how many top-ranked web results get scraped (default: all, up to 10)"),
       })
       .optional()
@@ -513,9 +525,12 @@ Behavior notes:
           query: args.query,
           ...(args.sources ? { sources: args.sources } : {}),
           ...(args.limit ? { limit: args.limit } : {}),
+          ...(args.pageTokens ? { pageTokens: args.pageTokens } : {}),
+          ...(args.timeRange ? { timeRange: args.timeRange } : {}),
           ...(args.country ? { country: args.country } : {}),
           ...(args.includeDomains ? { includeDomains: args.includeDomains } : {}),
           ...(args.excludeDomains ? { excludeDomains: args.excludeDomains } : {}),
+          ...(args.filetype ? { filetype: args.filetype } : {}),
           ...(args.scrapeOptions ? { scrapeOptions: args.scrapeOptions } : {}),
         },
         { timeout: 240_000 }
