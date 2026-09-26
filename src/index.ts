@@ -324,7 +324,7 @@ const server = new FastMCP<SessionData>({
     "Use spidra_scrape for 1-3 known URLs when you want a single extraction, with multiple URLs their content is merged and the AI answers ONCE across all of them (good for comparing or synthesizing pages; it waits and returns the result). " +
     "Use spidra_batch_scrape (2-50 known URLs) when each URL should produce its OWN independent result, e.g. the same fields from every product page (async, poll spidra_check_batch_status). " +
     "Use spidra_crawl to discover and process pages starting from one URL when you do NOT know the page URLs upfront (async, poll spidra_check_crawl_status). " +
-    "Every scraped URL costs credits (base 2 per URL plus AI tokens), so prefer the narrowest tool and smallest page counts that answer the question.",
+    "Every scraped URL costs credits (base 1 per URL plus AI tokens), so prefer the narrowest tool and smallest page counts that answer the question.",
   logger,
   roots: { enabled: false },
   ...(oauthProvider ? { auth: oauthProvider } : {}),
@@ -357,7 +357,7 @@ Behavior notes:
 - Pass "prompt" for free-form AI extraction, and add "schema" when you need a guaranteed JSON shape. Define every field in the schema, untyped objects come back empty.
 - Use "actions" to interact with the page first (dismiss cookie banners, type into search boxes, scroll, or loop over elements with forEach).
 - Use "useProxy" with "proxyCountry" for geo-restricted or bot-protected sites.
-- Costs: 2 credits per URL plus AI tokens; CAPTCHA solves cost 10 credits each.
+- Costs: 1 credit per URL plus AI tokens; CAPTCHA solves cost 5 credits each.
 
 **Usage example:**
 \`\`\`json
@@ -561,7 +561,7 @@ Scrape a list of 2-50 known URLs in parallel with the same extraction prompt/sch
 **Best for:** running the same extraction on each of many similar pages (product pages, listings, articles) where you need separate data per URL, even for just 2 URLs.
 **Workflow:** call this, then poll spidra_check_batch_status with the batchId every 10-15 seconds until the batch reaches a terminal state. Do NOT resubmit while a batch is pending.
 
-Costs: 2 credits per URL plus AI tokens. Failed items can be retried with spidra_retry_batch, or the whole batch cancelled with spidra_cancel_batch (credits for unprocessed items are refunded).
+Costs: 1 credit per URL plus AI tokens. Failed items can be retried with spidra_retry_batch, or the whole batch cancelled with spidra_cancel_batch (credits for unprocessed items are refunded).
 `,
   parameters: z.object({
     urls: z.array(z.string()).min(2).max(50).describe("2-50 URLs to scrape in parallel (plain strings)"),

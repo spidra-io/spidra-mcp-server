@@ -33,7 +33,7 @@ All you have to do is describe what you want in plain language, and the assistan
 
 You need two things:
 
-1. **A Spidra account.** Sign up at [app.spidra.io](https://app.spidra.io). Using the API-key method below instead of OAuth? Create one under **Settings** > **API Keys**, keys start with `spd_`.
+1. **A Spidra account.** Sign up at [app.spidra.io](https://app.spidra.io). Using the API-key method below instead of OAuth? Create one under **API Keys**, keys start with `spd_`.
 2. **An MCP-compatible client.** Any of the assistants below works.
 
 That's it if you use the hosted endpoint below. Running the server yourself additionally needs **Node.js 20 or newer** (check with `node --version`), the `npx` command that runs it ships with Node.
@@ -54,7 +54,7 @@ claude mcp add --transport http spidra https://mcp.spidra.io/mcp
 
 Start a new Claude Code session and run `/mcp`. It opens a browser to log in and approve access, then shows the connection as active.
 
-> Logging in via OAuth automatically creates (and reuses) a dedicated API key labeled **MCP (OAuth)** on your account, visible and revocable anytime under **Settings** > **API Keys**, exactly like any other key.
+> Logging in via OAuth automatically creates (and reuses) a dedicated API key labeled **MCP (OAuth)** on your account, visible and revocable anytime under **API Keys**, exactly like any other key.
 
 ### API key (alternative)
 
@@ -780,7 +780,7 @@ Reports the account's request, credit, and token usage broken down by day or wee
 
 ## Credits and how this server protects them
 
-Every scraped URL costs credits: a base of 2 credits per URL, plus AI tokens when extraction runs, plus 10 credits per CAPTCHA solved. A plain search costs a small amount based on how many sources you requested, not how many results came back; turning on `scrapeOptions` bills each fetched result at the normal scrape rate on top of that. Agent loops can burn through credits quickly if the tools let them, so this server is deliberately built to prevent that:
+Every scraped URL costs credits: a base of 1 credit per URL, plus AI tokens when extraction runs, plus 5 credits per CAPTCHA solved. A plain search costs a small amount based on how many sources you requested, not how many results came back; turning on `scrapeOptions` bills each fetched result at the normal scrape rate on top of that. Agent loops can burn through credits quickly if the tools let them, so this server is deliberately built to prevent that:
 
 - The tool descriptions steer the assistant toward the cheapest tool that answers the question, and tell it to keep `maxPages` small.
 - Long-running jobs return a job ID with explicit polling instructions, so the assistant never resubmits a job that is still running.
@@ -814,7 +814,7 @@ Transient network failures and 5xx responses are retried automatically with back
 
 - **The assistant does not see any Spidra tools.** Restart your client after adding the config. Most clients only read MCP configuration at startup. In Claude Code, run `/mcp` to check the connection status.
 - **"No Spidra API key configured."** For local/stdio setups, the `SPIDRA_API_KEY` variable is not reaching the server, make sure it is inside the `env` block of the server entry, not at the top level of the config file. For the hosted endpoint, check your header name and value (below).
-- **Hosted endpoint returns a 401.** The header is missing, misnamed, or the key has been revoked. It must be exactly `Authorization: Bearer spd_...`, and the key must still exist under **Settings** > **API Keys** in your dashboard.
+- **Hosted endpoint returns a 401.** The header is missing, misnamed, or the key has been revoked. It must be exactly `Authorization: Bearer spd_...`, and the key must still exist under **API Keys** in your dashboard.
 - **OAuth login doesn't open a browser, or the client falls back to asking for a key.** Not every MCP client supports OAuth yet, use the API key method for that client instead. If a browser window did open but the flow failed partway through, retry; if it keeps failing, confirm you're logged into [app.spidra.io](https://app.spidra.io) in that browser.
 - **OAuth login fails with "Invalid or expired transaction" or similar, then the assistant reports no credentials found.** The login attempt was interrupted before it finished, usually from taking too long on the approve screen (the flow expires after 10 minutes) or retrying a stale login link. Remove and re-add the connector to start clean, and approve access promptly. Falls back to the API key method for that client if it keeps happening.
 - **A scrape "timed out."** The job is still running on the server and nothing is lost. The error includes the job ID, and the assistant will fetch the result with `spidra_check_scrape_status`. Bot-protected sites can take a couple of minutes.
