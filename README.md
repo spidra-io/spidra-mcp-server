@@ -334,8 +334,8 @@ This section is written for humans, but the same guidance is embedded in the too
 The first question is whether you already know the URL:
 
 - **You don't know the URL yet:** use **search**. It finds pages, news, images, or videos for a query, and can optionally fetch each web result's actual page content in the same call.
-- **You know the URL (or 2 to 3 related URLs) and want one answer:** use **scrape**. When you pass several URLs, their content is merged and the AI answers once across all of them. That makes it the right tool for comparing two pricing pages or summarizing three related articles into one answer.
-- **You want separate data for each URL in a list:** use **batch scrape**, even if the list only has 2 items. Every URL is processed independently and returns its own result. This is the tool for "extract the same fields from each of these product pages."
+- **You know one URL and want its content:** use **scrape**.
+- **You know more than one URL, even just two, even to compare them:** use **batch scrape**. Every URL is processed independently and returns its own result, that's true whether you want the same fields from 50 product pages or a comparison of two pricing pages, the comparison itself is something the assistant does across the two clean results, not something a single scrape call should try to do internally.
 - **You don't know the page URLs at all, just a starting point:** use **crawl**. You give it one starting URL and a plain-English instruction about which links to follow, and it discovers the pages itself.
 
 ### Quick reference
@@ -344,7 +344,7 @@ The first question is whether you already know the URL:
 |---|---|---|
 | `spidra_search` | Finding pages, news, images, videos, papers, or GitHub issues/PRs for a query | Waits, returns the result directly |
 | `spidra_check_search_status` | Re-checking a search that outlived its wait window (rare) | Instant lookup |
-| `spidra_scrape` | One combined answer from 1 to 3 known URLs | Waits, returns the result directly |
+| `spidra_scrape` | Extracted content from one known URL | Waits, returns the result directly |
 | `spidra_check_scrape_status` | Re-checking a scrape that outlived its wait window | Instant lookup |
 | `spidra_batch_scrape` | Separate results for each of 2 to 50 known URLs | Returns a `batchId`, assistant polls |
 | `spidra_check_batch_status` | Progress and per-URL results for a batch | Instant lookup |
@@ -427,23 +427,21 @@ Looks up a search job by ID. Only needed when `spidra_search` reported that its 
 
 ### 3. Scrape (`spidra_scrape`)
 
-Scrapes 1 to 3 URLs and extracts their content with AI. This tool waits for the result, typically 10 to 60 seconds, and returns the extracted content directly. No polling needed.
+Scrapes one URL and extracts its content with AI. This tool waits for the result, typically 10 to 60 seconds, and returns the extracted content directly. No polling needed.
 
-The important behavior to understand: when you pass more than one URL, their content is combined and the AI produces **one answer across all of them**, there is no per-URL breakdown. Use multiple URLs here when you want the AI to compare or synthesize across pages. If you want the same extraction run separately on each URL, use `spidra_batch_scrape` instead, even for just 2 URLs.
+For anything involving more than one URL, even just comparing two pages, use `spidra_batch_scrape` instead, so each URL gets its own clean, attributable result rather than one answer that risks blending or misattributing facts between sources.
 
 **Best for:**
 
 - Getting content or specific data from a page you already know
-- One combined answer drawn from 2 or 3 related pages, like a pricing comparison
 
 **Not recommended for:**
 
-- Separate results per URL (use `spidra_batch_scrape`)
+- Any task involving more than one URL, including comparing two pages (use `spidra_batch_scrape`)
 - Discovering pages on a site (use `spidra_crawl`)
 
 **Common mistakes:**
 
-- Passing several unrelated URLs expecting individual results for each. You will get one merged answer. Use batch scrape for per-URL results.
 - Omitting a prompt and a schema when you wanted structured data. With neither, you get the page back as raw markdown.
 
 **Prompt example:**
@@ -456,7 +454,7 @@ The important behavior to understand: when you pass more than one URL, their con
 {
   "name": "spidra_scrape",
   "arguments": {
-    "urls": ["https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"],
+    "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
     "prompt": "Extract the product information",
     "output": "json",
     "schema": {
@@ -472,26 +470,13 @@ The important behavior to understand: when you pass more than one URL, their con
 }
 ```
 
-**Usage example (compare two pages in one answer):**
-
-```json
-{
-  "name": "spidra_scrape",
-  "arguments": {
-    "urls": ["https://stripe.com/pricing", "https://www.paddle.com/pricing"],
-    "prompt": "Compare the plans on these two pages and list the differences in price and features",
-    "output": "json"
-  }
-}
-```
-
 **Usage example (raw markdown, no AI extraction):**
 
 ```json
 {
   "name": "spidra_scrape",
   "arguments": {
-    "urls": ["https://posthog.com/tutorials/web-redact-properties"]
+    "url": "https://posthog.com/tutorials/web-redact-properties"
   }
 }
 ```
@@ -499,7 +484,7 @@ The important behavior to understand: when you pass more than one URL, their con
 **Other options worth knowing:**
 
 - `actions`: browser steps to run before extraction, in order. Supports `click`, `type`, `check`, `uncheck`, `wait`, `scroll`, and `forEach` (loop over every matching element, optionally with pagination). Use this to dismiss cookie banners, fill in a search box, or expand hidden content before the scrape happens.
-- `instruction`: AI Navigate mode, a single natural-language instruction handling all the interactions automatically (e.g. "search for wireless headphones and open the first result") instead of listing out `actions` steps by hand. Applies to every URL passed.
+- `instruction`: AI Navigate mode, a single natural-language instruction handling all the interactions automatically (e.g. "search for wireless headphones and open the first result") instead of listing out `actions` steps by hand.
 - `cookies`: a raw Cookie header string for pages behind a login, for example `"session=abc123; token=xyz"`.
 - `useProxy` and `proxyCountry`: route through a residential proxy, optionally pinned to a country like `"us"` or `"de"`. Use for geo-restricted content or sites that block datacenter traffic.
 - `screenshot`: capture a viewport screenshot. The result includes a URL to the image.
@@ -525,7 +510,7 @@ Looks up a scrape job by ID. You only need this in one situation: a scrape took 
 
 ### 5. Batch scrape (`spidra_batch_scrape`)
 
-Submits 2 to 50 URLs that are all processed in parallel with the same prompt or schema. Each URL is handled **independently and gets its own result**. This is the opposite of multi-URL scrape, which merges everything into one answer.
+Submits 2 to 50 URLs that are all processed in parallel with the same prompt or schema. Each URL is handled **independently and gets its own result**, this is the tool for anything involving more than one URL, `spidra_scrape` only ever takes one.
 
 This tool returns immediately with a `batchId`. It does not wait, because a 50-URL batch can take several minutes. The assistant then polls `spidra_check_batch_status` every 10 to 15 seconds until the batch reaches a terminal state. The tool's own response tells the assistant to do exactly that, so you do not have to manage any of it.
 
@@ -536,7 +521,6 @@ This tool returns immediately with a `batchId`. It does not wait, because a 50-U
 
 **Not recommended for:**
 
-- One combined answer across pages (use `spidra_scrape`)
 - Pages you have not discovered yet (use `spidra_crawl`)
 
 **Common mistakes:**

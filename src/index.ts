@@ -188,13 +188,22 @@ function getClient(session?: SessionData): SpidraClient {
 // Output shaping: keep tool results inside sane LLM context budgets
 // ---------------------------------------------------------------------------
 
-const MAX_STRING_LENGTH = 5_000;
+// MAX_STRING_LENGTH used to be 5,000, which turned out far too conservative
+// against an 80,000 total budget: confirmed live (2026-09-26) that a
+// spidra_scrape call asking for "every 2026 changelog entry" got a
+// perfectly reasonable, already-AI-condensed 6,180-character answer (not a
+// raw markdown dump) truncated at 5,000 anyway, losing everything from
+// mid-April back to January. Raised 4x so a single long scrape/crawl-page
+// answer usually fits whole, while still well under the total budget so a
+// batch/crawl response with many items doesn't have just one of them eat
+// the whole thing.
+const MAX_STRING_LENGTH = 20_000;
 const MAX_OUTPUT_LENGTH = 80_000;
 
 function truncateDeep(value: unknown): unknown {
   if (typeof value === "string") {
     return value.length > MAX_STRING_LENGTH
-      ? `${value.slice(0, MAX_STRING_LENGTH)}... [truncated ${value.length - MAX_STRING_LENGTH} of ${value.length} chars, this one field was cut for length, the rest exists server-side but isn't shown here]`
+      ? `${value.slice(0, MAX_STRING_LENGTH)}... [truncated ${value.length - MAX_STRING_LENGTH} of ${value.length} chars. To see the rest, ask a narrower question: a specific date/section range, a JSON schema for just the fields you need, or fewer URLs at once.]`
       : value;
   }
   if (Array.isArray(value)) return value.map(truncateDeep);
@@ -320,9 +329,8 @@ const server = new FastMCP<SessionData>({
   instructions:
     "Spidra is an AI-powered web scraping, crawling, and search service. " +
     "First question: do you already know the URL(s)? If not, start with spidra_search to find them. " +
-    "If you do know the URL(s), the next question is whether you want ONE combined answer or SEPARATE data per URL. " +
-    "Use spidra_scrape for 1-3 known URLs when you want a single extraction, with multiple URLs their content is merged and the AI answers ONCE across all of them (good for comparing or synthesizing pages; it waits and returns the result). " +
-    "Use spidra_batch_scrape (2-50 known URLs) when each URL should produce its OWN independent result, e.g. the same fields from every product page (async, poll spidra_check_batch_status). " +
+    "If you do know the URL, use spidra_scrape for a single extraction from it (it waits and returns the result). " +
+    "Use spidra_batch_scrape (2-50 known URLs) for anything involving more than one URL, each gets its own independent result (async, poll spidra_check_batch_status) -- do NOT call spidra_scrape once per URL and try to compare/combine the answers yourself across separate calls when a single batch call does it cleanly. " +
     "Use spidra_crawl to discover and process pages starting from one URL when you do NOT know the page URLs upfront (async, poll spidra_check_crawl_status). " +
     "Every scraped URL costs credits (base 1 per URL plus AI tokens), so prefer the narrowest tool and smallest page counts that answer the question.",
   logger,
@@ -345,12 +353,10 @@ server.addTool({
     destructiveHint: false,
   },
   description: `
-Scrape 1-3 known URLs and extract their content with AI. This tool WAITS for the result (typically 10-60 seconds) and returns the extracted content directly.
+Scrape one known URL and extract its content with AI. This tool WAITS for the result (typically 10-60 seconds) and returns the extracted content directly.
 
-IMPORTANT: with multiple URLs, their content is COMBINED and the AI produces ONE answer across all of them, there is no per-URL breakdown. Use several URLs here when you want to compare or synthesize across pages, e.g. "compare the pricing on these two pages". If instead you want the SAME extraction run separately on each URL (own result per URL), use spidra_batch_scrape even for just 2 URLs.
-
-**Best for:** one URL, or one combined answer drawn from 2-3 related URLs.
-**Not for:** per-URL independent results (use spidra_batch_scrape) or discovering pages on a site (use spidra_crawl).
+**Best for:** one known URL.
+**Not for:** discovering pages on a site (use spidra_crawl), or more than one URL, even just to compare two pages. Use spidra_batch_scrape for that instead, so each URL gets its own clean, attributable result rather than one answer that risks blending or misattributing facts between sources.
 
 Behavior notes:
 - Omit "prompt" and "schema" to get the raw page content as markdown.
@@ -364,7 +370,7 @@ Behavior notes:
 {
   "name": "spidra_scrape",
   "arguments": {
-    "urls": ["https://spidra.io/pricing"],
+    "url": "https://spidra.io/pricing",
     "prompt": "Extract all pricing plans with name, price, and included features",
     "output": "json"
   }
@@ -373,7 +379,7 @@ Behavior notes:
 **Returns:** extracted content plus token/credit stats. If the wait window is exceeded, the job keeps running, poll spidra_check_scrape_status with the returned jobId.
 `,
   parameters: z.object({
-    urls: z.array(z.string()).min(1).max(3).describe("1-3 URLs to scrape in parallel"),
+    url: z.string().describe("The URL to scrape"),
     prompt: z.string().optional().describe("What to extract, in plain English. Omit for raw markdown."),
     output: z.enum(["json", "markdown"]).optional().describe('Output format (default "markdown")'),
     schema: jsonSchemaParam,
@@ -385,7 +391,7 @@ Behavior notes:
       .string()
       .optional()
       .describe(
-        'AI Navigate mode: a single natural-language instruction handling all interactions automatically (e.g. "search for wireless headphones and open the first result"), applied to every URL. Use this instead of "actions" when the steps aren\'t known ahead of time.'
+        'AI Navigate mode: a single natural-language instruction handling all interactions automatically (e.g. "search for wireless headphones and open the first result"). Use this instead of "actions" when the steps aren\'t known ahead of time.'
       ),
     cookies: z.string().optional().describe('Raw Cookie header string for pages behind a login, e.g. "session=abc"'),
     screenshot: z.boolean().optional().describe("Capture a viewport screenshot (URL returned)"),
@@ -395,15 +401,17 @@ Behavior notes:
   }),
   execute: async (args, { session, log }) => {
     const client = getClient(session);
-    log.info("Scraping", { urls: args.urls });
+    log.info("Scraping", { url: args.url });
     return run(async () => {
       const result = await client.scrape(
         {
-          urls: args.urls.map((url) => ({
-            url,
-            ...(args.actions ? { actions: args.actions as never } : {}),
-            ...(args.instruction ? { instruction: args.instruction } : {}),
-          })),
+          urls: [
+            {
+              url: args.url,
+              ...(args.actions ? { actions: args.actions as never } : {}),
+              ...(args.instruction ? { instruction: args.instruction } : {}),
+            },
+          ],
           prompt: args.prompt ?? "",
           ...(args.output ? { output: args.output } : {}),
           ...(args.schema ? { schema: args.schema } : {}),
@@ -571,7 +579,7 @@ server.addTool({
     destructiveHint: false,
   },
   description: `
-Scrape a list of 2-50 known URLs in parallel with the same extraction prompt/schema. Each URL is processed INDEPENDENTLY and gets its OWN result (unlike spidra_scrape, which merges multiple URLs into one combined answer). This tool returns IMMEDIATELY with a batchId, it does not wait.
+Scrape a list of 2-50 known URLs in parallel with the same extraction prompt/schema. Each URL is processed INDEPENDENTLY and gets its OWN result -- this is the tool for anything involving more than one URL, spidra_scrape only ever takes one. This tool returns IMMEDIATELY with a batchId, it does not wait.
 
 **Best for:** running the same extraction on each of many similar pages (product pages, listings, articles) where you need separate data per URL, even for just 2 URLs.
 **Workflow:** call this, then poll spidra_check_batch_status with the batchId every 10-15 seconds until the batch reaches a terminal state. Do NOT resubmit while a batch is pending.

@@ -198,7 +198,7 @@ test("tools/list exposes all 16 tools with annotations", async () => {
   ]);
   const scrape = tools.find((t) => t.name === "spidra_scrape");
   assert.equal(scrape.annotations.readOnlyHint, true);
-  assert.match(scrape.description, /1-3 known URLs/);
+  assert.match(scrape.description, /Scrape one known URL/);
   const search = tools.find((t) => t.name === "spidra_search");
   assert.equal(search.annotations.readOnlyHint, true);
   assert.match(search.description, /WAITS for the result/);
@@ -206,7 +206,7 @@ test("tools/list exposes all 16 tools with annotations", async () => {
 
 test("spidra_scrape submits, polls, and returns extracted content", async () => {
   const result = await client.callTool("spidra_scrape", {
-    urls: ["https://example.com"],
+    url: "https://example.com",
     prompt: "Extract the headline",
     output: "json",
   });
