@@ -781,7 +781,7 @@ Crawl a website starting from one URL: Spidra discovers pages by following links
 Behavior notes:
 - "crawlInstruction" controls which links are followed (e.g. "Follow blog post links only, skip tag pages").
 - "transformInstruction" controls what is extracted per page; omit it (and schema) for raw markdown with no AI token cost.
-- Keep "maxPages" small (default 5, max 50), every page returned costs credits. Category and listing pages read only to find the wanted pages are free.
+- Keep "maxPages" small (default 5), every page returned costs credits. The most allowed per crawl depends on the plan: Free 100, Starter 1,000, Builder 5,000, Pro 10,000. Category and listing pages read only to find the wanted pages are free.
 - After it finishes, spidra_crawl_report explains what was skipped and why, if a page you expected is missing.
 
 **Usage example:**
@@ -805,7 +805,7 @@ Behavior notes:
       .optional()
       .describe("What to extract from each page. Omit for raw markdown (no AI cost)."),
     schema: jsonSchemaParam,
-    maxPages: z.number().min(1).max(50).optional().describe("Max pages to crawl (default 5). Keep small, each page costs credits."),
+    maxPages: z.number().int().min(1).max(10000).optional().describe("Most pages to return (default 5; plan limits: Free 100, Starter 1,000, Builder 5,000, Pro 10,000). Keep it small, each page costs 1 credit."),
     maxDepth: z.number().optional().describe("Max link depth from the base URL. 0 = base URL only."),
     includePaths: z.array(z.string()).optional().describe('URL path patterns to include, e.g. ["/blog/*"]'),
     excludePaths: z.array(z.string()).optional().describe('URL path patterns to skip, e.g. ["/tag/*"]'),
@@ -840,7 +840,7 @@ server.addTool({
     destructiveHint: false,
   },
   description: `
-Check the status of a crawl job by jobId. While running, returns a progress message describing what's happening right now (e.g. "Scraping (3/10) https://..."), not a page count, poll again for an updated one. When completed, returns the extracted data for every page. ${TERMINAL_NOTE}
+Check the status of a crawl job by jobId. While running, returns a progress message describing what's happening right now (e.g. "Scraping (3/10) https://..."), not a page count, poll again for an updated one. When completed, returns the extracted data for the pages (the first 100 for large crawls; "totalPages" says how many there are, and spidra_crawl_pages reads the rest). ${TERMINAL_NOTE}
 `,
   parameters: z.object({ jobId: z.string().describe("The crawl job id returned by spidra_crawl") }),
   execute: async (args, { session }) => {
@@ -858,12 +858,17 @@ server.addTool({
     destructiveHint: false,
   },
   description: `
-Get per-page results for a crawl, including signed download URLs for each page's raw HTML and markdown (links expire after 1 hour). Works on completed crawls and on cancelled crawls (returns the pages processed before cancellation).
+Get per-page results for a crawl, including signed download URLs for each page's raw HTML and markdown (links expire after 1 hour). Works on completed crawls and on cancelled crawls (returns the pages processed before cancellation). Returns up to 1,000 pages per call: for large crawls pass "offset" and "limit", and keep "limit" small (e.g. 50) to save context. The response has "total" and "hasMore".
 `,
-  parameters: z.object({ jobId: z.string() }),
+  parameters: z.object({
+    jobId: z.string(),
+    offset: z.number().int().min(0).optional().describe("Pages to skip (default 0)"),
+    limit: z.number().int().min(1).max(1000).optional().describe("Pages to return (default 1,000)"),
+  }),
   execute: async (args, { session }) => {
     const client = getClient(session);
-    return run(async () => asText(await client.crawlPages(args.jobId)));
+    const { jobId, ...params } = args;
+    return run(async () => asText(await client.crawlPages(jobId, params)));
   },
 });
 

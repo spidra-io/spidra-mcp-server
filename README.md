@@ -684,7 +684,7 @@ Two instructions control a crawl, and keeping them straight matters:
 
 Spidra reads category, listing and section pages to find the pages you asked for. Those pages are not returned and are not charged.
 
-**Scoping options:** `maxPages` (default 5, maximum 50), `maxDepth` (0 means the base URL only, omit for no limit), `includePaths` and `excludePaths` (path patterns like `"/blog/*"`), `allowSubdomains`, `crawlEntireDomain`, and `ignoreQueryParams` (treat URLs that differ only by query string as the same page). `useSitemap` (default true) reads the site's sitemap to find pages, and `respectRobots` (default false) follows the site's robots.txt rules and Crawl-delay. `cookies`, `useProxy`, and `proxyCountry` work the same as in scrape.
+**Scoping options:** `maxPages` (default 5; up to 100 on Free, 1,000 on Starter, 5,000 on Builder and 10,000 on Pro), `maxDepth` (0 means the base URL only, omit for no limit), `includePaths` and `excludePaths` (path patterns like `"/blog/*"`), `allowSubdomains`, `crawlEntireDomain`, and `ignoreQueryParams` (treat URLs that differ only by query string as the same page). `useSitemap` (default true) reads the site's sitemap to find pages, and `respectRobots` (default false) follows the site's robots.txt rules and Crawl-delay. `cookies`, `useProxy`, and `proxyCountry` work the same as in scrape.
 
 **Returns:** `{ "jobId": "..." }` plus polling instructions for the assistant.
 
