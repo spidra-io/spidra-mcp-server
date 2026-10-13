@@ -77,6 +77,12 @@ const fakeApi = createServer((req, res) => {
         error: null,
       });
     }
+    if (req.method === "POST" && req.url === "/api/parse") {
+      return send(202, { jobId: "parse-1", status: "queued", fileName: "a.pdf", sourceUrl: "https://x.com/a.pdf", fileId: "f1", format: "PDF", totalPages: 2, pagesParsed: null, creditsUsed: 0 });
+    }
+    if (req.method === "GET" && req.url?.startsWith("/api/parse/parse-1")) {
+      return send(200, { jobId: "parse-1", status: "completed", fileName: "a.pdf", fileId: "f1", format: "PDF", totalPages: 2, pagesParsed: 2, creditsUsed: 2, markdown: "# Parsed heading" });
+    }
     if (req.method === "POST" && req.url === "/api/map") {
       return send(200, { status: "success", links: [{ url: "https://example.com/pricing", title: "Pricing" }], total: 1, scanned: 12, sources: { sitemap: 10, pages: 2 }, creditsUsed: 1, durationMs: 800 });
     }
@@ -233,7 +239,7 @@ test("stdio stays clean — no log noise corrupted the JSON-RPC stream", async (
   assert.ok(client);
 });
 
-test("tools/list exposes all 18 tools with annotations", async () => {
+test("tools/list exposes all 20 tools with annotations", async () => {
   const res = await client.request("tools/list");
   const tools = res.result.tools;
   const names = tools.map((t) => t.name).sort();
@@ -243,6 +249,7 @@ test("tools/list exposes all 18 tools with annotations", async () => {
     "spidra_cancel_crawl",
     "spidra_check_batch_status",
     "spidra_check_crawl_status",
+    "spidra_check_parse_status",
     "spidra_check_scrape_status",
     "spidra_check_search_status",
     "spidra_crawl",
@@ -250,6 +257,7 @@ test("tools/list exposes all 18 tools with annotations", async () => {
     "spidra_crawl_pages",
     "spidra_crawl_report",
     "spidra_map",
+    "spidra_parse",
     "spidra_retry_batch",
     "spidra_retry_crawl_page",
     "spidra_scrape",
@@ -335,6 +343,19 @@ test("spidra_crawl returns a jobId and polling instructions without waiting", as
   const text = result.content[0].text;
   assert.match(text, /crawl-xyz/);
   assert.match(text, /spidra_check_crawl_status/);
+});
+
+test("spidra_parse parses a link and waits for the result", async () => {
+  const result = await client.callTool("spidra_parse", { url: "https://x.com/a.pdf", pages: "1-2" });
+  assert.match(result.content[0].text, /Parsed heading/);
+  const submit = recorded.filter((r) => r.url === "/api/parse").pop();
+  assert.deepEqual(JSON.parse(submit.body), { url: "https://x.com/a.pdf", pages: "1-2", wait: false });
+});
+
+test("spidra_parse rejects two sources at once", async () => {
+  const result = await client.callTool("spidra_parse", { url: "https://x.com/a.pdf", fileId: "f1" });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /exactly one/);
 });
 
 test("spidra_map returns URLs directly", async () => {

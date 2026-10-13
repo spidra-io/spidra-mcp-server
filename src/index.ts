@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { FastMCP, OAuthProvider, type Logger } from "fastmcp";
+import { FastMCP, OAuthProvider, UserError, type Logger } from "fastmcp";
 import type { IncomingHttpHeaders } from "node:http";
 import { createRequire } from "node:module";
 import { z } from "zod";
@@ -331,6 +331,7 @@ const server = new FastMCP<SessionData>({
     "First question: do you already know the URL(s)? If not, start with spidra_search to find them. " +
     "If you do know the URL, use spidra_scrape for a single extraction from it (it waits and returns the result). " +
     "Use spidra_batch_scrape (2-50 known URLs) for anything involving more than one URL, each gets its own independent result (async, poll spidra_check_batch_status) -- do NOT call spidra_scrape once per URL and try to compare/combine the answers yourself across separate calls when a single batch call does it cleanly. " +
+    "Use spidra_parse to turn a PDF, Word, Excel or PowerPoint document (a link, or a small file as base64) into Markdown or extracted JSON. " +
     "Use spidra_map to list a site's page URLs quickly (1 credit, waits and returns), then scrape the ones you need. " +
     "Use spidra_crawl to discover and process pages starting from one URL when you do NOT know the page URLs upfront (async, poll spidra_check_crawl_status). " +
     "Every scraped URL costs credits (base 1 per URL plus AI tokens), so prefer the narrowest tool and smallest page counts that answer the question.",
@@ -714,6 +715,93 @@ Cancel a pending or running batch scrape. Credits for unprocessed items are refu
   execute: async (args, { session }) => {
     const client = getClient(session);
     return run(async () => asText(await client.cancelBatchScrape(args.batchId)));
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Parse tools
+// ---------------------------------------------------------------------------
+
+const PARSE_WAIT_MS = 50_000;
+
+server.addTool({
+  name: "spidra_parse",
+  annotations: {
+    title: "Parse a document",
+    readOnlyHint: true,
+    openWorldHint: true,
+    destructiveHint: false,
+  },
+  description: `
+Turn a document into Markdown, page by page: PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV or HTML. Pass a link to the document ("url"), a small file as base64 ("fileBase64" with "fileName", up to about 10 MB), or a "fileId" from an earlier parse. Scanned pages are read with AI. Add "prompt" or "schema" to get extracted fields as JSON.
+
+Costs 1 credit per page parsed, plus AI tokens for extraction; pages that fail are free. Use "pages" (like "1-5") or "maxPages" to parse only what you need from long documents. Waits for the result; very long documents return a jobId to check with spidra_check_parse_status.
+
+**Best for:** reports, papers, invoices, contracts and spreadsheets, whether they are online or the user gave you the file.
+**Not for:** web pages (use spidra_scrape).
+
+**Usage example:**
+\`\`\`json
+{
+  "name": "spidra_parse",
+  "arguments": { "url": "https://arxiv.org/pdf/1706.03762", "pages": "1-3" }
+}
+\`\`\`
+`,
+  parameters: z.object({
+    url: z.string().optional().describe("Link to the document"),
+    fileBase64: z.string().max(14_000_000).optional().describe("The file's bytes, base64-encoded (up to about 10 MB)"),
+    fileName: z.string().optional().describe("The file's name with its extension, required with fileBase64, e.g. report.pdf"),
+    fileId: z.string().optional().describe("A fileId from an earlier parse, to parse the same file again with other options"),
+    mode: z.enum(["auto", "fast", "ocr"]).optional().describe('"auto" (default) uses AI only for scanned pages, "fast" never, "ocr" on every page'),
+    pages: z.string().optional().describe('PDF pages to parse, like "1-5, 9" or "10-"'),
+    maxPages: z.number().int().min(1).optional().describe("Parse at most this many pages"),
+    includePages: z.boolean().optional().describe("Also return per-page Markdown"),
+    prompt: z.string().max(5000).optional().describe("Fields to extract, in plain words; the result is in json"),
+    schema: jsonSchemaParam,
+  }),
+  execute: async (args, { session, log }) => {
+    const client = getClient(session);
+    const { url, fileBase64, fileName, fileId, ...options } = args;
+    const sources = [url, fileBase64, fileId].filter(Boolean).length;
+    if (sources !== 1) throw new UserError('Pass exactly one of "url", "fileBase64" (with "fileName") or "fileId".');
+    if (fileBase64 && !fileName) throw new UserError('"fileName" is required with "fileBase64", e.g. "report.pdf".');
+    const input = url ? { url } : fileId ? { fileId } : { file: Buffer.from(fileBase64!, "base64"), fileName: fileName! };
+    log.info("Parsing document", { source: url ?? fileName ?? fileId });
+    return run(async () => {
+      const job = await client.startParse(input as never, { ...options, schema: options.schema as Record<string, unknown> | undefined });
+      const deadline = Date.now() + PARSE_WAIT_MS;
+      let current = job;
+      while ((current.status === "queued" || current.status === "running") && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 2000));
+        current = await client.getParse(job.jobId, { includePages: options.includePages });
+      }
+      if (current.status === "queued" || current.status === "running") {
+        return asText({ jobId: job.jobId, status: current.status, next: `Still parsing. Call spidra_check_parse_status with jobId "${job.jobId}" in a little while.` });
+      }
+      return asText(current);
+    });
+  },
+});
+
+server.addTool({
+  name: "spidra_check_parse_status",
+  annotations: {
+    title: "Check parse status",
+    readOnlyHint: true,
+    openWorldHint: false,
+    destructiveHint: false,
+  },
+  description: `
+Check a parse job started by spidra_parse. While running, shows which page it is on; when completed, returns the Markdown (and JSON if extraction was asked for). ${TERMINAL_NOTE}
+`,
+  parameters: z.object({
+    jobId: z.string().describe("The jobId returned by spidra_parse"),
+    includePages: z.boolean().optional().describe("Also return per-page Markdown"),
+  }),
+  execute: async (args, { session }) => {
+    const client = getClient(session);
+    return run(async () => asText(await client.getParse(args.jobId, { includePages: args.includePages })));
   },
 });
 

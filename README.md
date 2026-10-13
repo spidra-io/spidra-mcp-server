@@ -336,6 +336,7 @@ The first question is whether you already know the URL:
 - **You don't know the URL yet:** use **search**. It finds pages, news, images, or videos for a query, and can optionally fetch each web result's actual page content in the same call.
 - **You know one URL and want its content:** use **scrape**.
 - **You know more than one URL, even just two, even to compare them:** use **batch scrape**. Every URL is processed independently and returns its own result, that's true whether you want the same fields from 50 product pages or a comparison of two pricing pages, the comparison itself is something the assistant does across the two clean results, not something a single scrape call should try to do internally.
+- **You have a document, not a web page:** use **parse**. It turns a PDF, Word, Excel or PowerPoint file (a link, or a small file the user gave you) into Markdown, page by page, and can extract fields as JSON.
 - **You want to see which pages a site has before scraping:** use **map**. It lists a site's URLs in a few seconds for 1 credit, ranked by a search if you give one, so the assistant can scrape just the right pages.
 - **You don't know the page URLs at all, just a starting point:** use **crawl**. You give it one starting URL and a plain-English instruction about which links to follow, and it discovers the pages itself.
 
@@ -351,6 +352,8 @@ The first question is whether you already know the URL:
 | `spidra_check_batch_status` | Progress and per-URL results for a batch | Instant lookup |
 | `spidra_retry_batch` | Re-running just the failed items in a finished batch | Instant |
 | `spidra_cancel_batch` | Stopping a batch you no longer need | Instant |
+| `spidra_parse` | Turning a PDF, Word, Excel or PowerPoint document into Markdown or JSON | Waits, returns the result directly |
+| `spidra_check_parse_status` | Checking a parse that outlived its wait | Instant lookup |
 | `spidra_map` | Listing a site's page URLs, optionally ranked by a search | Waits, returns the URLs directly |
 | `spidra_crawl` | Discovering and processing pages from one starting URL | Returns a `jobId`, assistant polls |
 | `spidra_check_crawl_status` | Progress, then full results, for a crawl | Instant lookup |
@@ -608,7 +611,32 @@ Cancels a pending or running batch. Items that already finished keep their resul
 
 **Returns:** the number of cancelled items and the credits refunded.
 
-### 9. Map (`spidra_map`)
+### 9. Parse (`spidra_parse`)
+
+Turns a document into Markdown, page by page: PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV or HTML. Give it a link to the document, a small file the user shared (as base64, up to about 10 MB), or a `fileId` from an earlier parse. Scanned pages are read with AI. Add `prompt` or `schema` to get fields back as JSON.
+
+It costs 1 credit per page parsed, plus AI tokens for extraction, and pages that fail are free. Use `pages` (like `"1-5"`) or `maxPages` to read only what you need from long documents.
+
+**Prompt example:**
+
+> "Read pages 1 to 3 of https://arxiv.org/pdf/1706.03762 and summarize the method."
+
+```json
+{
+  "name": "spidra_parse",
+  "arguments": { "url": "https://arxiv.org/pdf/1706.03762", "pages": "1-3" }
+}
+```
+
+**Options:** `mode` (`"auto"`, `"fast"` or `"ocr"`), `pages`, `maxPages`, `includePages` (per-page Markdown), `prompt` and `schema`.
+
+**Returns:** `markdown`, `json` when extraction was asked for, `pagesParsed`, `creditsUsed` and a `fileId` to parse the same file again. Very long documents return a `jobId` instead; check it with `spidra_check_parse_status`.
+
+### 10. Check parse status (`spidra_check_parse_status`)
+
+Checks a parse that was still running when `spidra_parse` returned. While running it shows which page it is on; when finished it returns the result.
+
+### 11. Map (`spidra_map`)
 
 Lists the page URLs of a website without scraping them. Spidra reads the site's sitemap and the links on its main pages, and returns the URLs directly, usually in a few seconds. Give it a `search` and the URLs come back ranked by how well they match. It costs 1 credit per call, and nothing when no URLs are found.
 
@@ -638,7 +666,7 @@ Lists the page URLs of a website without scraping them. Spidra reads the site's 
 
 **Returns:** `links` (each with `url` and, when known, the link text as `title`), `total` (URLs that matched), `scanned` (URLs found before the search filter) and `sources` (how many came from the sitemap and from pages).
 
-### 10. Crawl (`spidra_crawl`)
+### 12. Crawl (`spidra_crawl`)
 
 Crawls a website starting from one URL. Spidra discovers pages by following links according to a plain-English instruction you provide, and optionally extracts structured data from every page it visits. This is the tool for "get me something from every page in this section of a site" when you do not have the page URLs.
 
@@ -688,7 +716,7 @@ Spidra reads category, listing and section pages to find the pages you asked for
 
 **Returns:** `{ "jobId": "..." }` plus polling instructions for the assistant.
 
-### 11. Check crawl status (`spidra_check_crawl_status`)
+### 13. Check crawl status (`spidra_check_crawl_status`)
 
 Fetches a crawl's progress while it runs, and its full results once it completes.
 
@@ -703,7 +731,7 @@ Fetches a crawl's progress while it runs, and its full results once it completes
 
 **Returns:** while running, the status and a progress message describing what's happening right now (e.g. "Scraping (3/10) https://..."), not a page count, poll again for an updated one. When completed, an array with every crawled page's URL, title, and extracted data. Terminal statuses are `completed`, `failed`, and `cancelled`.
 
-### 12. Crawl report (`spidra_crawl_report`)
+### 14. Crawl report (`spidra_crawl_report`)
 
 Explains a finished crawl: how Spidra understood the instruction, how many pages it read only to find the wanted ones (free), and every link it did not follow, grouped by reason. Pass `reason` to list the URLs for one reason, each with the page it was found on. The assistant uses this when a page you expected is missing, then adjusts the instruction or paths and crawls again.
 
@@ -721,7 +749,7 @@ Reasons: `not_relevant`, `outside_domain`, `include_pattern`, `exclude_pattern`,
 
 **Returns:** `report` with `understoodAs`, `navigationPages`, `skippedTotal`, `skipped` (reason, count, description) and `skippedUrls` (url, reason, foundOn). `report` is null while the crawl is still running.
 
-### 13. Crawl pages (`spidra_crawl_pages`)
+### 15. Crawl pages (`spidra_crawl_pages`)
 
 Fetches per-page results for a crawl, including signed download URLs for each page's raw HTML and markdown. Useful when you want the original page content rather than only the extracted data. The download links expire after 1 hour, so use them promptly.
 
@@ -738,7 +766,7 @@ This also works on cancelled crawls, returning whatever pages finished before th
 
 **Returns:** an array of pages, each with its URL, status, extracted data, and signed `html` and `markdown` download URLs.
 
-### 14. Re-extract from a crawl (`spidra_crawl_extract`)
+### 16. Re-extract from a crawl (`spidra_crawl_extract`)
 
 Runs a brand new extraction instruction over a crawl that already completed, without fetching any pages again. Spidra kept the page content, so only AI token credits are charged, no per-page scraping cost. This is the cheap way to ask a second question of the same site.
 
@@ -756,7 +784,7 @@ For example: you crawled a competitor's blog extracting titles and dates. Now yo
 
 **Returns:** a new `jobId`. The assistant polls `spidra_check_crawl_status` with it, same as a normal crawl. The source crawl must have status `completed`.
 
-### 15. Retry one crawled page (`spidra_retry_crawl_page`)
+### 17. Retry one crawled page (`spidra_retry_crawl_page`)
 
 Re-runs the AI transformation for a single already-crawled page, using the crawl's own `transformInstruction`. Use this when just one or two pages failed extraction rather than re-running `spidra_crawl_extract` over the whole crawl. Get the page's `id` from `spidra_crawl_pages`.
 
@@ -772,7 +800,7 @@ Re-runs the AI transformation for a single already-crawled page, using the crawl
 
 **Returns:** the re-extracted `data` for that page, plus tokens and credits used. Only charges for that page's transformation.
 
-### 16. Cancel crawl (`spidra_cancel_crawl`)
+### 18. Cancel crawl (`spidra_cancel_crawl`)
 
 Cancels a queued or running crawl. Pages that were already processed are kept and remain retrievable through `spidra_crawl_pages`, and credits for unprocessed pages are refunded.
 
@@ -787,7 +815,7 @@ Cancels a queued or running crawl. Pages that were already processed are kept an
 
 **Returns:** confirmation with the cancelled job's ID.
 
-### 17. Scrape logs (`spidra_scrape_logs`)
+### 19. Scrape logs (`spidra_scrape_logs`)
 
 Browses past scrape jobs on the account: what ran, when, whether it succeeded, and how many credits it used. Pass a `uuid` to fetch one log entry with its complete AI output. Useful for finding the result of an earlier job, debugging a failure, or reviewing what a key has been used for.
 
@@ -804,7 +832,7 @@ Browses past scrape jobs on the account: what ran, when, whether it succeeded, a
 
 **Returns:** a list of log entries with URLs, status, credits, tokens, and timing. With a `uuid`, the single entry including its full extraction result.
 
-### 18. Usage (`spidra_usage`)
+### 20. Usage (`spidra_usage`)
 
 Reports the account's request, credit, and token usage broken down by day or week. Ask the assistant "how many credits have I used this week?" and this is the tool it reaches for. Also handy before kicking off a large batch or crawl.
 
