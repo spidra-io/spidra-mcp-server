@@ -77,6 +77,12 @@ const fakeApi = createServer((req, res) => {
         error: null,
       });
     }
+    if (req.method === "POST" && req.url === "/api/map") {
+      return send(200, { status: "success", links: [{ url: "https://example.com/pricing", title: "Pricing" }], total: 1, scanned: 12, sources: { sitemap: 10, pages: 2 }, creditsUsed: 1, durationMs: 800 });
+    }
+    if (req.method === "GET" && req.url?.startsWith("/api/crawl/crawl-xyz/report")) {
+      return send(200, { status: "success", report: { understoodAs: "Blog posts", navigationPages: 2, skippedTotal: 4, skipped: [{ reason: "not_relevant", count: 4, description: "Not related to the instruction" }], skippedUrls: [{ url: "https://example.com/about", reason: "not_relevant", foundOn: "https://example.com" }], skippedUrlsTotal: 4 } });
+    }
     if (req.method === "POST" && req.url === "/api/crawl") {
       return send(202, { status: "queued", jobId: "crawl-xyz" });
     }
@@ -227,7 +233,7 @@ test("stdio stays clean — no log noise corrupted the JSON-RPC stream", async (
   assert.ok(client);
 });
 
-test("tools/list exposes all 16 tools with annotations", async () => {
+test("tools/list exposes all 18 tools with annotations", async () => {
   const res = await client.request("tools/list");
   const tools = res.result.tools;
   const names = tools.map((t) => t.name).sort();
@@ -242,6 +248,8 @@ test("tools/list exposes all 16 tools with annotations", async () => {
     "spidra_crawl",
     "spidra_crawl_extract",
     "spidra_crawl_pages",
+    "spidra_crawl_report",
+    "spidra_map",
     "spidra_retry_batch",
     "spidra_retry_crawl_page",
     "spidra_scrape",
@@ -327,6 +335,20 @@ test("spidra_crawl returns a jobId and polling instructions without waiting", as
   const text = result.content[0].text;
   assert.match(text, /crawl-xyz/);
   assert.match(text, /spidra_check_crawl_status/);
+});
+
+test("spidra_map returns URLs directly", async () => {
+  const result = await client.callTool("spidra_map", { url: "https://example.com", search: "pricing", limit: 5 });
+  const text = result.content[0].text;
+  assert.match(text, /example\.com\/pricing/);
+  const submit = recorded.filter((r) => r.url === "/api/map").pop();
+  assert.deepEqual(JSON.parse(submit.body), { url: "https://example.com", search: "pricing", limit: 5 });
+});
+
+test("spidra_crawl_report forwards the reason filter", async () => {
+  const result = await client.callTool("spidra_crawl_report", { jobId: "crawl-xyz", reason: "not_relevant" });
+  assert.match(result.content[0].text, /found|foundOn/);
+  assert.ok(recorded.some((r) => r.url === "/api/crawl/crawl-xyz/report?reason=not_relevant"));
 });
 
 test("spidra_batch_scrape returns a batchId and polling instructions", async () => {

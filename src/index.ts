@@ -331,6 +331,7 @@ const server = new FastMCP<SessionData>({
     "First question: do you already know the URL(s)? If not, start with spidra_search to find them. " +
     "If you do know the URL, use spidra_scrape for a single extraction from it (it waits and returns the result). " +
     "Use spidra_batch_scrape (2-50 known URLs) for anything involving more than one URL, each gets its own independent result (async, poll spidra_check_batch_status) -- do NOT call spidra_scrape once per URL and try to compare/combine the answers yourself across separate calls when a single batch call does it cleanly. " +
+    "Use spidra_map to list a site's page URLs quickly (1 credit, waits and returns), then scrape the ones you need. " +
     "Use spidra_crawl to discover and process pages starting from one URL when you do NOT know the page URLs upfront (async, poll spidra_check_crawl_status). " +
     "Every scraped URL costs credits (base 1 per URL plus AI tokens), so prefer the narrowest tool and smallest page counts that answer the question.",
   logger,
@@ -721,6 +722,48 @@ Cancel a pending or running batch scrape. Credits for unprocessed items are refu
 // ---------------------------------------------------------------------------
 
 server.addTool({
+  name: "spidra_map",
+  annotations: {
+    title: "List a site's URLs",
+    readOnlyHint: true,
+    openWorldHint: true,
+    destructiveHint: false,
+  },
+  description: `
+List the page URLs of a website without scraping them, from its sitemap and the links on its main pages. WAITS and returns the URLs directly, usually in a few seconds. Costs 1 credit per call, nothing when no URLs are found.
+
+**Best for:** finding the right pages on a site before scraping them ("which page on stripe.com covers refunds?"), or getting a full URL list cheaply.
+**Workflow:** map with a "search" to rank URLs by relevance, pick the ones you need, then call spidra_scrape or spidra_batch_scrape on exactly those. This is often cheaper than spidra_crawl when you only need a few pages.
+
+**Usage example:**
+\`\`\`json
+{
+  "name": "spidra_map",
+  "arguments": { "url": "https://docs.python.org/3/", "search": "asyncio", "limit": 20 }
+}
+\`\`\`
+`,
+  parameters: z.object({
+    url: z.string().describe("The website to map"),
+    search: z.string().optional().describe("Only return URLs related to these words, best matches first"),
+    limit: z.number().int().min(1).max(5000).optional().describe("Most URLs returned (default 500). Keep it small when you only need a few."),
+    sitemap: z
+      .enum(["include", "only", "skip"])
+      .optional()
+      .describe('"include" (default) reads the sitemap and page links, "only" the sitemap (fastest), "skip" the links only'),
+    includeSubdomains: z.boolean().optional(),
+    ignoreQueryParams: z.boolean().optional().describe("Treat URLs that differ only by query string as one (default true)"),
+    respectRobots: z.boolean().optional().describe("Leave out URLs the site's robots.txt disallows"),
+    cookies: z.string().optional(),
+  }),
+  execute: async (args, { session, log }) => {
+    const client = getClient(session);
+    log.info("Mapping site", { url: args.url });
+    return run(async () => asText(await client.map(args)));
+  },
+});
+
+server.addTool({
   name: "spidra_crawl",
   annotations: {
     title: "Crawl a website",
@@ -738,7 +781,8 @@ Crawl a website starting from one URL: Spidra discovers pages by following links
 Behavior notes:
 - "crawlInstruction" controls which links are followed (e.g. "Follow blog post links only, skip tag pages").
 - "transformInstruction" controls what is extracted per page; omit it (and schema) for raw markdown with no AI token cost.
-- Keep "maxPages" small (default 5, max 50), every page costs credits.
+- Keep "maxPages" small (default 5, max 50), every page returned costs credits. Category and listing pages read only to find the wanted pages are free.
+- After it finishes, spidra_crawl_report explains what was skipped and why, if a page you expected is missing.
 
 **Usage example:**
 \`\`\`json
@@ -769,6 +813,8 @@ Behavior notes:
     crawlEntireDomain: z.boolean().optional(),
     ignoreQueryParams: z.boolean().optional(),
     cookies: z.string().optional(),
+    useSitemap: z.boolean().optional().describe("Read the site's sitemap to find pages (default true)"),
+    respectRobots: z.boolean().optional().describe("Follow the site's robots.txt rules and Crawl-delay (default false)"),
     ...proxyParams,
   }),
   execute: async (args, { session, log }) => {
@@ -818,6 +864,32 @@ Get per-page results for a crawl, including signed download URLs for each page's
   execute: async (args, { session }) => {
     const client = getClient(session);
     return run(async () => asText(await client.crawlPages(args.jobId)));
+  },
+});
+
+server.addTool({
+  name: "spidra_crawl_report",
+  annotations: {
+    title: "Explain what a crawl skipped",
+    readOnlyHint: true,
+    openWorldHint: false,
+    destructiveHint: false,
+  },
+  description: `
+Explain a finished crawl: how it understood the instruction, how many pages it read only to find the wanted ones (not billed), and the links it did NOT follow, grouped by reason with counts. Pass "reason" to list the URLs for one reason, each with the page it was found on.
+
+Use this when a page you expected is missing from the results, then adjust crawlInstruction, includePaths or maxPages and crawl again. Reasons: not_relevant, outside_domain, include_pattern, exclude_pattern, file_type, other_version_or_language, duplicate_page, redirected_off_site, robots_txt, action_link.
+`,
+  parameters: z.object({
+    jobId: z.string().describe("The crawl job id"),
+    reason: z.string().optional().describe('List skipped URLs for this reason only, e.g. "not_relevant"'),
+    limit: z.number().int().min(1).max(2000).optional().describe("How many skipped URLs to return (default 200)"),
+    offset: z.number().int().min(0).optional(),
+  }),
+  execute: async (args, { session }) => {
+    const client = getClient(session);
+    const { jobId, ...params } = args;
+    return run(async () => asText(await client.crawlReport(jobId, params)));
   },
 });
 
