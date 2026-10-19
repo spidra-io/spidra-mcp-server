@@ -412,7 +412,7 @@ Runs a real search query and returns structured results: titles, links, descript
 - `timeRange`: restrict results to a recency window (`hour`/`day`/`week`/`month`/`year`). Support varies by which engine actually answers; an unsupported window is just ignored, never an error.
 - `filetype`: `"pdf"` restricts web results to PDF files.
 - `includeDomains` / `excludeDomains`: restrict web results to, or keep them away from, specific domains. Pass one or the other, never both.
-- `scrapeOptions`: opt-in, also fetches each web result's actual page content (markdown only, no screenshot option here, that's what `spidra_scrape` is for) in this same call, no separate `spidra_scrape` step needed. This makes the call take as long as its slowest scraped page instead of the usual few seconds, and costs the normal per-page scrape credits on top of the search. A result that fails to scrape is simply left without markdown, not an error. PDF results (and other documents) are handled too: converted straight to markdown, no separate step needed, pairs naturally with `filetype: "pdf"`.
+- `scrapeOptions`: opt-in, also fetches each web result's actual page content (markdown only, no screenshot option here, that's what `spidra_scrape` is for) in this same call, no separate `spidra_scrape` step needed. This makes the call take as long as its slowest scraped page instead of the usual few seconds, and costs the normal per-page scrape credits on top of the search. A result that fails to scrape is simply left without markdown, not an error. Pages read by one of Spidra's site scrapers also get a `structuredData` object with the page's fields. PDF results (and other documents) are handled too: converted straight to markdown, no separate step needed, pairs naturally with `filetype: "pdf"`.
 
 **Returns:** results grouped by requested source, plus `stats`. If the wait window is exceeded (rare, only realistic with `scrapeOptions` on many results), the job keeps running and the error hands the assistant the job ID to check with `spidra_check_search_status`.
 
@@ -495,9 +495,10 @@ For anything involving more than one URL, even just comparing two pages, use `sp
 - `useProxy` and `proxyCountry`: route through a residential proxy, optionally pinned to a country like `"us"` or `"de"`. Use for geo-restricted content or sites that block datacenter traffic.
 - `screenshot`: capture a viewport screenshot. The result includes a URL to the image.
 - `extractContentOnly`: strip navigation, ads, and boilerplate before the AI sees the page.
-- `scrapeMode`: `"fast"` uses plain HTTP with no browser. Cheaper and quicker, but it cannot run actions or render JavaScript-heavy pages. The default mode uses a real browser.
+- `scrapeMode`: `"fast"` uses plain HTTP with no browser. Cheaper and quicker, but it cannot run actions or render JavaScript-heavy pages. `"default"` uses a real browser.
+- `output`: `"markdown"` (the default) or `"json"`. With `"json"` and no prompt or schema, a page handled by one of Spidra's site scrapers (Amazon, LinkedIn, Google Maps and others) returns its structured data as is, with no AI. Other pages use the default AI extraction.
 
-**Returns:** the extracted `content`, any `screenshots`, and `stats` with token counts and timing. If the wait window is ever exceeded, the job keeps running on the server and the error message hands the assistant the job ID to check with `spidra_check_scrape_status`. Nothing is lost.
+**Returns:** the extracted `content`, any `screenshots`, and `stats` with token counts and timing. Markdown is the readable page only. When a site scraper handled the page, the result also has `structuredData`, an object with the page's fields. `canonicalUrl` appears when the site scraper used a cleaned link, and `warnings` lists anything you asked for that was not done. If the wait window is ever exceeded, the job keeps running on the server and the error message hands the assistant the job ID to check with `spidra_check_scrape_status`. Nothing is lost.
 
 ### 4. Check scrape status (`spidra_check_scrape_status`)
 
@@ -564,6 +565,8 @@ This tool returns immediately with a `batchId`. It does not wait, because a 50-U
 
 **Returns:** `{ "batchId": "...", "total": 3 }` plus instructions for the assistant to poll. URLs here are plain strings, not objects.
 
+`output` defaults to `"markdown"`, and passing a schema forces `"json"`. `scrapeMode` is `"default"` or `"fast"`, same as `spidra_scrape`.
+
 ### 6. Check batch status (`spidra_check_batch_status`)
 
 Fetches the current state of a batch: overall status, progress counters, and per-URL results for every item that has finished so far.
@@ -577,13 +580,13 @@ Fetches the current state of a batch: overall status, progress counters, and per
 }
 ```
 
-**Returns:** batch status (`pending`, `running`, `completed`, `failed`, or `cancelled`), `completedCount`, `failedCount`, and an `items` array where each entry carries its URL, status, extraction result, credits used, and timestamps.
+**Returns:** batch status (`pending`, `running`, `completed`, `failed`, or `cancelled`), `completedCount`, `failedCount`, and an `items` array where each entry carries its URL, status, extraction result, credits used, and timestamps. Items handled by one of Spidra's site scrapers also carry `structuredData`.
 
 One thing to know: a `completed` batch can still contain individual failed items. Check `failedCount`, then retry just those with `spidra_retry_batch` rather than resubmitting the whole batch.
 
 ### 7. Retry batch (`spidra_retry_batch`)
 
-Re-queues only the failed items in a batch, successful items are left alone and not re-run.
+Re-queues only the failed items in a batch, successful items are left alone and not re-run. Every option from the original batch is kept. Cookies are never stored, so a batch that used cookies retries logged out.
 
 ```json
 {

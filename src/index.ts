@@ -361,7 +361,8 @@ Scrape one known URL and extract its content with AI. This tool WAITS for the re
 **Not for:** discovering pages on a site (use spidra_crawl), or more than one URL, even just to compare two pages. Use spidra_batch_scrape for that instead, so each URL gets its own clean, attributable result rather than one answer that risks blending or misattributing facts between sources.
 
 Behavior notes:
-- Omit "prompt" and "schema" to get the raw page content as markdown.
+- Omit "prompt" and "schema" to get the page content as readable markdown. For pages handled by one of Spidra's site scrapers (Amazon, LinkedIn, Google Maps, Instagram, Reddit and others), the result also has "structuredData", an object with the page's fields. The markdown does not include that data.
+- "output" is "markdown" (default) or "json". With "json" and no prompt or schema, a site scraper page returns its structured data as is, with no AI; other pages use the default AI extraction.
 - Pass "prompt" for free-form AI extraction, and add "schema" when you need a guaranteed JSON shape. Define every field in the schema, untyped objects come back empty.
 - Use "actions" to interact with the page first (dismiss cookie banners, type into search boxes, scroll, or loop over elements with forEach).
 - By default (when you don't set "scrapeMode" or "useProxy" yourself), this tries a fast HTTP-only fetch first, no browser, no proxy, and only pays for a full browser render with a proxy if that first attempt's content came back suspiciously thin. Most ordinary pages finish in a couple seconds this way; a bot-protected page costs a second attempt (2 credits total instead of 1) but still resolves automatically. Set "scrapeMode" or "useProxy" yourself to skip this and go straight to a specific mode, e.g. for a site you already know needs a proxy.
@@ -378,7 +379,7 @@ Behavior notes:
   }
 }
 \`\`\`
-**Returns:** extracted content plus token/credit stats. If the wait window is exceeded, the job keeps running, poll spidra_check_scrape_status with the returned jobId.
+**Returns:** extracted content plus token/credit stats, and "structuredData", "canonicalUrl" (the cleaned link a site scraper used) and "warnings" (anything asked for that was not done) when present. If the wait window is exceeded, the job keeps running, poll spidra_check_scrape_status with the returned jobId.
 `,
   parameters: z.object({
     url: z.string().describe("The URL to scrape"),
@@ -398,7 +399,7 @@ Behavior notes:
     cookies: z.string().optional().describe('Raw Cookie header string for pages behind a login, e.g. "session=abc"'),
     screenshot: z.boolean().optional().describe("Capture a viewport screenshot (URL returned)"),
     extractContentOnly: z.boolean().optional().describe("Strip navigation/ads/boilerplate before extraction"),
-    scrapeMode: z.enum(["default", "fast"]).optional().describe('"fast" = HTTP only (no browser), cheaper but less capable. Leave unset to let this tool pick automatically (fast first, falls back to a full browser+proxy attempt only if needed).'),
+    scrapeMode: z.enum(["default", "fast"]).optional().describe('"default" = full browser, "fast" = HTTP only (no browser), cheaper but less capable. Leave unset to let this tool pick automatically (fast first, falls back to a full browser+proxy attempt only if needed).'),
     ...proxyParams,
   }),
   execute: async (args, { session, log }) => {
@@ -448,8 +449,20 @@ Behavior notes:
         result = await runScrape("default", true);
       }
 
+      // structuredData/canonicalUrl/warnings are raw API fields; typed loosely
+      // so this compiles against spidra SDK versions that predate them.
+      const first = result.data?.[0] as
+        | { structuredData?: unknown; canonicalUrl?: string; warnings?: string[] }
+        | undefined;
+      // In json mode without a prompt/schema, content already IS the
+      // structured data, so only add it separately when it isn't duplicated.
+      const includeStructured = args.output !== "json";
+
       return asText({
         content: result.content,
+        ...(includeStructured && first?.structuredData !== undefined ? { structuredData: first.structuredData } : {}),
+        ...(first?.canonicalUrl ? { canonicalUrl: first.canonicalUrl } : {}),
+        ...(first?.warnings?.length ? { warnings: first.warnings } : {}),
         screenshots: result.screenshots,
         extractionEmpty: result.extraction_empty || undefined,
         lowContent: result.data?.[0]?.lowContent || undefined,
@@ -502,7 +515,7 @@ Behavior notes:
 - Only "web" results come back unless you add "sources". Each source runs independently, one being empty doesn't affect the others. "research" covers arXiv/PubMed/bioRxiv/medRxiv; "developer" covers GitHub issues and PRs; neither honors includeDomains/excludeDomains/filetype.
 - Use "includeDomains" or "excludeDomains" (never both) to restrict results to or away from specific sites.
 - Need more results than one call returned? Pass that source's token from the previous response's "nextPageTokens" back as "pageTokens" (e.g. \`{"web": "<token>"}\`) to fetch the next page -- results continue the same rank numbering (11, 12, ... after a first page of 10), they don't restart at 1. A source with no "nextPageTokens" entry has no more pages.
-- Add "scrapeOptions" to also fetch each web result's actual page content (clean markdown) in the SAME call, no separate spidra_scrape step needed. This makes the call take as long as its slowest scraped page (not the usual few seconds), and costs the normal per-page scrape credits on top of the search. A result that fails to scrape is just left without markdown, not an error.
+- Add "scrapeOptions" to also fetch each web result's actual page content (clean markdown) in the SAME call, no separate spidra_scrape step needed. This makes the call take as long as its slowest scraped page (not the usual few seconds), and costs the normal per-page scrape credits on top of the search. A result that fails to scrape is just left without markdown, not an error. Pages read by one of Spidra's site scrapers also get "structuredData" with the page's fields.
 - Want AI extraction, a schema, or a screenshot instead of plain markdown from one specific result? Scrape that URL directly with spidra_scrape.
 
 **Costs:** 1 credit per 10 results actually returned, per source, rounded up (10 web results is 1 credit, 15 is 2, a source that returns nothing is free). Requesting more sources or a higher "limit" only costs more if it actually delivers more results.
@@ -614,16 +627,18 @@ Scrape a list of 2-50 known URLs in parallel with the same extraction prompt/sch
 **Workflow:** call this, then poll spidra_check_batch_status with the batchId every 10-15 seconds until the batch reaches a terminal state. Do NOT resubmit while a batch is pending.
 - For 10 URLs or fewer, set "wait" to true to get the finished results back directly from this call instead of polling, this can still take a couple minutes for a slow batch. Above 10 URLs "wait" is ignored and the normal batchId is returned, since waiting on a large batch would just tie up this call for as long as the slowest item takes anyway.
 
+"output" is "markdown" (the default) or "json"; passing a schema forces "json". Each finished item has its "result", plus "structuredData" (an object with the page's fields) when the URL was handled by one of Spidra's site scrapers. Markdown results do not include that data.
+
 Costs: 1 credit per URL plus AI tokens. Failed items can be retried with spidra_retry_batch, or the whole batch cancelled with spidra_cancel_batch (credits for unprocessed items are refunded).
 `,
   parameters: z.object({
     urls: z.array(z.string()).min(2).max(50).describe("2-50 URLs to scrape in parallel (plain strings)"),
     prompt: z.string().optional().describe("What to extract from each page. Omit for raw markdown."),
-    output: z.enum(["json", "markdown"]).optional(),
+    output: z.enum(["json", "markdown"]).optional().describe('Output format (default "markdown"; a schema forces "json")'),
     schema: jsonSchemaParam,
     cookies: z.string().optional(),
     extractContentOnly: z.boolean().optional(),
-    scrapeMode: z.enum(["default", "fast"]).optional(),
+    scrapeMode: z.enum(["default", "fast"]).optional().describe('"default" = full browser (the default), "fast" = HTTP only (no browser)'),
     wait: z.boolean().optional().describe("For batches of 10 URLs or fewer, wait and return the finished results directly instead of a batchId to poll. Ignored above 10 URLs."),
     ...proxyParams,
   }),
@@ -691,7 +706,7 @@ server.addTool({
     destructiveHint: false,
   },
   description: `
-Re-queue only the failed items in a batch scrape, successful items are left alone and not re-run. Use this after spidra_check_batch_status shows failedCount > 0 and you want another attempt at just those URLs.
+Re-queue only the failed items in a batch scrape, successful items are left alone and not re-run. Every option from the original batch is kept. Cookies are never stored, so a batch that used cookies retries logged out. Use this after spidra_check_batch_status shows failedCount > 0 and you want another attempt at just those URLs.
 `,
   parameters: z.object({ batchId: z.string() }),
   execute: async (args, { session }) => {
