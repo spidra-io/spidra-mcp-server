@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   SpidraClient,
   SpidraError,
+  SpidraJobError,
   SpidraRateLimitError,
   SpidraTimeoutError,
   SpidraValidationError,
@@ -247,6 +248,16 @@ function toToolError(err: unknown): Error {
       `Invalid request, fix these problems and try again (do not retry unchanged): ${err.errors.join("; ") || err.message}`
     );
   }
+  if (err instanceof SpidraJobError) {
+    // A browser step that couldn't be done names itself: "Action 2 (click "#login") failed: <reason>".
+    if (/Action \d+ \(.*\) failed:/.test(err.message)) {
+      return new Error(
+        `The scrape job failed (failed jobs are free): ${err.message} ` +
+          `Fix that step (its selector, a longer timeout, or a waitFor before it), then call again.`
+      );
+    }
+    return new Error(`The ${err.jobStatus === "cancelled" ? "job was cancelled" : "job failed"}: ${err.message}`);
+  }
   if (err instanceof SpidraError) {
     const retryable = err.status >= 500;
     return new Error(
@@ -269,36 +280,112 @@ async function run<T>(fn: () => Promise<T>): Promise<T> {
 // Shared parameter schemas
 // ---------------------------------------------------------------------------
 
-const browserActionSchema: z.ZodType<Record<string, unknown>> = z.lazy(() =>
-  z
-    .object({
-      type: z.enum(["click", "type", "check", "uncheck", "wait", "scroll", "forEach"]),
-      selector: z.string().optional().describe("CSS selector or XPath of the target element"),
-      value: z
-        .string()
-        .optional()
-        .describe("Plain-language element description (AI locates it), or the text to type"),
-      duration: z.number().optional().describe("Milliseconds to pause, for the wait action"),
-      to: z.string().optional().describe('Scroll destination as a percentage, e.g. "80%"'),
-      observe: z
-        .string()
-        .optional()
-        .describe('forEach: which elements to find, e.g. "Find all product cards"'),
-      mode: z.enum(["click", "inline", "navigate"]).optional().describe("forEach interaction mode"),
-      captureSelector: z.string().optional().describe("forEach: CSS selector of content to capture per item"),
-      maxItems: z.number().optional().describe("forEach: max elements to process (cap 50)"),
-      waitAfterClick: z.number().optional().describe("forEach: ms to wait after click/navigate before capture"),
-      itemPrompt: z.string().optional().describe("forEach: per-element extraction prompt"),
-      actions: z.array(browserActionSchema).optional().describe("forEach: per-element actions after click/navigate"),
-      pagination: z
-        .object({
-          nextSelector: z.string().describe('Selector or description of the "next page" link'),
-          maxPages: z.number().optional().describe("Max extra pages to paginate through (cap 10)"),
-        })
-        .optional(),
-    })
-    .passthrough()
-) as z.ZodType<Record<string, unknown>>;
+// Browser actions, matching the API's definition (spidra-backend services/actions/normalize.ts). The API checks
+// everything again and answers 422 naming the action, so these limits only help the model get it right first time.
+const STEP_TYPES = [
+  "click",
+  "type",
+  "check",
+  "uncheck",
+  "hover",
+  "select",
+  "press",
+  "wait",
+  "waitFor",
+  "scroll",
+  "scrollUntilEnd",
+  "evaluate",
+  "screenshot",
+] as const;
+
+const stepFields = {
+  selector: z
+    .string()
+    .optional()
+    .describe(
+      'The element: a CSS selector ("#login"), an XPath, or plain English ("the Sign in button"). Required for click, check, uncheck, hover, select and waitFor; optional for type (default: the first visible text field) and press (default: the page).'
+    ),
+  value: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .describe("type: the text to type. select: the option to choose (by label or value), or several for a multi-select."),
+  key: z.string().optional().describe('press: a key name such as "Enter", "Tab", "Escape", "ArrowDown" or "Control+A"'),
+  timeout: z
+    .number()
+    .min(100)
+    .max(30000)
+    .optional()
+    .describe("Milliseconds to look for the element (default 10000). Raise it for slow pages, e.g. waitFor on content that loads late."),
+  optional: z
+    .boolean()
+    .optional()
+    .describe(
+      "true: if this step fails, skip it (reported as skipped) and run the rest. Without it, a failed step fails the whole job. Use it for things that may not be there, like cookie banners or popups."
+    ),
+  duration: z.number().min(1).max(30000).optional().describe("wait: milliseconds to pause"),
+  state: z
+    .enum(["visible", "attached", "hidden", "detached"])
+    .optional()
+    .describe('waitFor: the state to wait for (default "visible")'),
+  to: z
+    .union([z.number(), z.string()])
+    .optional()
+    .describe('scroll: a percentage of the page height (80 or "80%"), "top", "bottom", or an element to scroll into view'),
+  pixels: z.number().optional().describe("scroll: scroll by this many pixels instead of using to (negative scrolls up)"),
+  maxScrolls: z.number().int().min(1).max(30).optional().describe("scrollUntilEnd: most rounds (default 10)"),
+  pause: z.number().min(200).max(5000).optional().describe("scrollUntilEnd: milliseconds to wait after each round (default 1500)"),
+  clickSelector: z
+    .string()
+    .optional()
+    .describe('scrollUntilEnd: a "Load more" button to click each round instead of scrolling'),
+  script: z
+    .string()
+    .max(10000)
+    .optional()
+    .describe('evaluate: JavaScript run in the page. An expression ("document.title") is returned as is; statements need return. The value comes back in actionResults.'),
+  fullPage: z.boolean().optional().describe("screenshot: capture the whole page instead of the viewport"),
+};
+
+// A step inside forEach: any action except forEach.
+const stepSchema = z
+  .object({ type: z.enum(STEP_TYPES).describe("The action"), ...stepFields })
+  .passthrough();
+
+const browserActionSchema = z
+  .object({
+    type: z.enum([...STEP_TYPES, "forEach"]).describe("The action. forEach must be the single, last action."),
+    ...stepFields,
+    observe: z
+      .string()
+      .optional()
+      .describe('forEach (required): which elements to go through, in plain English, e.g. "each product card"'),
+    mode: z
+      .enum(["click", "inline", "navigate"])
+      .optional()
+      .describe('forEach: "click" (default) clicks each item and captures what appears, "inline" reads each item in place, "navigate" opens each item\'s link'),
+    captureSelector: z.string().optional().describe("forEach: what to capture for each item (CSS selector, XPath or description)"),
+    maxItems: z.number().int().min(1).max(50).optional().describe("forEach: most items across all pages (default 50)"),
+    waitAfterClick: z
+      .number()
+      .min(0)
+      .max(10000)
+      .optional()
+      .describe("forEach: ms to wait after clicking or opening an item before capturing it (default 2500)"),
+    itemPrompt: z.string().max(2000).optional().describe("forEach: an extraction prompt run on each item on its own"),
+    actions: z
+      .array(stepSchema)
+      .max(10)
+      .optional()
+      .describe("forEach: steps to run on each item after it is clicked or opened (no forEach)"),
+    pagination: z
+      .object({
+        nextSelector: z.string().describe('The "next page" button or link (CSS selector, XPath or description)'),
+        maxPages: z.number().int().min(1).max(10).optional().describe("Pages in total, counting the first (default 5)"),
+      })
+      .optional()
+      .describe("forEach: move through results pages after the items on the current one"),
+  })
+  .passthrough();
 
 const jsonSchemaParam = z
   .record(z.string(), z.unknown())
@@ -364,9 +451,28 @@ Behavior notes:
 - Omit "prompt" and "schema" to get the page content as readable markdown. For pages handled by one of Spidra's site scrapers (Amazon, LinkedIn, Google Maps, Instagram, Reddit and others), the result also has "structuredData", an object with the page's fields. The markdown does not include that data.
 - "output" is "markdown" (default) or "json". With "json" and no prompt or schema, a site scraper page returns its structured data as is, with no AI; other pages use the default AI extraction.
 - Pass "prompt" for free-form AI extraction, and add "schema" when you need a guaranteed JSON shape. Define every field in the schema, untyped objects come back empty.
-- Use "actions" to interact with the page first (dismiss cookie banners, type into search boxes, scroll, or loop over elements with forEach).
-- By default (when you don't set "scrapeMode" or "useProxy" yourself), this tries a fast HTTP-only fetch first, no browser, no proxy, and only pays for a full browser render with a proxy if that first attempt's content came back suspiciously thin. Most ordinary pages finish in a couple seconds this way; a bot-protected page costs a second attempt (2 credits total instead of 1) but still resolves automatically. Set "scrapeMode" or "useProxy" yourself to skip this and go straight to a specific mode, e.g. for a site you already know needs a proxy.
+- Use "actions" to work with the page before it is captured (see Browser actions below), or "instruction" for one plain-English task instead.
+- By default (when you don't set "scrapeMode" or "useProxy" yourself, and there are no "actions" or "instruction"), this tries a fast HTTP-only fetch first, no browser, no proxy, and only pays for a full browser render with a proxy if that first attempt's content came back suspiciously thin. Most ordinary pages finish in a couple seconds this way; a bot-protected page costs a second attempt (2 credits total instead of 1) but still resolves automatically. Set "scrapeMode" or "useProxy" yourself to skip this and go straight to a specific mode, e.g. for a site you already know needs a proxy.
 - Costs: 1 credit per URL plus AI tokens (2 if the automatic fallback above kicks in); CAPTCHA solves cost 5 credits each.
+
+**Browser actions** ("actions": steps run in order in a real browser before the page is captured; at most 50, and 60 seconds of waiting in total):
+- click, check, uncheck, hover: {"selector"}
+- type: {"selector" (optional, default the first visible text field), "value": the text}
+- select: {"selector", "value": the option's label or value}
+- press: {"key": "Enter" | "Tab" | "Escape" | "Control+A" ..., "selector" (optional)}
+- wait: {"duration": ms, 1-30000}. Prefer waitFor, which waits only as long as needed.
+- waitFor: {"selector", "state": "visible" (default) | "attached" | "hidden" | "detached"}
+- scroll: {"to": 0-100 | "top" | "bottom" | an element} or {"pixels": n}
+- scrollUntilEnd: {"maxScrolls" 1-30, "pause" ms, "clickSelector" for a "Load more" button}: keeps going until the page stops growing
+- evaluate: {"script"}: runs JavaScript in the page; its value comes back in actionResults
+- screenshot: {"fullPage"}: its link comes back in actionResults
+- forEach: {"observe", "mode": "click" | "inline" | "navigate", "captureSelector", "maxItems" 1-50, "itemPrompt", "actions" (per item, 10 max, no forEach), "pagination": {"nextSelector", "maxPages" 1-10}}: goes through a list and captures each item. It must be the single, LAST action.
+
+Rules:
+- "selector" is a CSS selector, an XPath, or plain English ("the Sign in button"). Prefer CSS when you know it: it is exact and faster.
+- Every step except forEach takes "timeout" (ms to find the element, 100-30000, default 10000) and "optional". A step that fails fails the whole job with "Action N (type "target") failed: <reason>" (failed jobs are free). Mark steps that may not be there (cookie banners, popups) "optional": true so they are skipped instead.
+- Use "actions" OR "instruction", never both. Either one always runs in a real browser, and such a run is never retried automatically, since steps like a form submission can have side effects.
+- Read "actionResults" in the result: one entry per step with "status" (ok, skipped or failed), "error", "result" (evaluate) and "screenshotUrl". "warnings" lists skipped steps and a forEach that fell back to the whole page or stopped early.
 
 **Usage example:**
 \`\`\`json
@@ -379,7 +485,26 @@ Behavior notes:
   }
 }
 \`\`\`
-**Returns:** extracted content plus token/credit stats, and "structuredData", "canonicalUrl" (the cleaned link a site scraper used) and "warnings" (anything asked for that was not done) when present. If the wait window is exceeded, the job keeps running, poll spidra_check_scrape_status with the returned jobId.
+
+**Usage example with actions:**
+\`\`\`json
+{
+  "name": "spidra_scrape",
+  "arguments": {
+    "url": "https://quotes.toscrape.com/login",
+    "actions": [
+      { "type": "click", "selector": "#cookie-accept", "optional": true, "timeout": 2000 },
+      { "type": "type", "selector": "#username", "value": "demo" },
+      { "type": "type", "selector": "#password", "value": "demo" },
+      { "type": "click", "selector": "input[type='submit']" },
+      { "type": "waitFor", "selector": "a[href='/logout']" }
+    ],
+    "prompt": "List the first 3 quotes with their authors",
+    "output": "json"
+  }
+}
+\`\`\`
+**Returns:** extracted content plus token/credit stats, and "structuredData", "canonicalUrl" (the cleaned link a site scraper used), "actionResults", "forEachItems" (how many items a forEach captured) and "warnings" (anything asked for that was not done) when present. If the wait window is exceeded, the job keeps running, poll spidra_check_scrape_status with the returned jobId.
 `,
   parameters: z.object({
     url: z.string().describe("The URL to scrape"),
@@ -388,18 +513,20 @@ Behavior notes:
     schema: jsonSchemaParam,
     actions: z
       .array(browserActionSchema)
+      .max(50)
       .optional()
-      .describe("Browser actions to run on each URL before extraction, in order"),
+      .describe("Browser steps to run in order before the page is captured. A forEach must be the single, last one. Can't be combined with instruction."),
     instruction: z
       .string()
+      .max(2000)
       .optional()
       .describe(
-        'AI Navigate mode: a single natural-language instruction handling all interactions automatically (e.g. "search for wireless headphones and open the first result"). Use this instead of "actions" when the steps aren\'t known ahead of time.'
+        'One plain-English task for the browser to carry out before the page is captured (e.g. "search for wireless headphones and open the first result"). Use this instead of "actions" when the steps aren\'t known ahead of time; never send both.'
       ),
     cookies: z.string().optional().describe('Raw Cookie header string for pages behind a login, e.g. "session=abc"'),
     screenshot: z.boolean().optional().describe("Capture a viewport screenshot (URL returned)"),
     extractContentOnly: z.boolean().optional().describe("Strip navigation/ads/boilerplate before extraction"),
-    scrapeMode: z.enum(["default", "fast"]).optional().describe('"default" = full browser, "fast" = HTTP only (no browser), cheaper but less capable. Leave unset to let this tool pick automatically (fast first, falls back to a full browser+proxy attempt only if needed).'),
+    scrapeMode: z.enum(["default", "fast"]).optional().describe('"default" = full browser, "fast" = HTTP only (no browser), cheaper but less capable. Leave unset to let this tool pick automatically (fast first, falls back to a full browser+proxy attempt only if needed; with actions or instruction it goes straight to the browser).'),
     ...proxyParams,
   }),
   execute: async (args, { session, log }) => {
@@ -440,7 +567,12 @@ Behavior notes:
       // which usually means real bot protection rather than a page that just
       // needs JS -- the backend already retries fast-mode-needs-JS cases
       // internally before this ever sees the result.
-      const autoMode = args.scrapeMode === undefined && args.useProxy === undefined;
+      //
+      // Actions and instructions skip all of that: they need a browser, so
+      // they go straight to it, and they run exactly once. A second run would
+      // repeat their steps (a form submitted twice, an item added twice).
+      const hasSteps = Boolean(args.actions?.length || args.instruction);
+      const autoMode = args.scrapeMode === undefined && args.useProxy === undefined && !hasSteps;
       let result = await runScrape(autoMode ? "fast" : args.scrapeMode ?? "default", autoMode ? false : args.useProxy ?? false);
       let usedFallback = false;
 
@@ -449,11 +581,20 @@ Behavior notes:
         result = await runScrape("default", true);
       }
 
-      // structuredData/canonicalUrl/warnings are raw API fields; typed loosely
-      // so this compiles against spidra SDK versions that predate them.
+      // structuredData/canonicalUrl/warnings/actionResults are raw API fields;
+      // typed loosely so this compiles against spidra SDK versions that predate them.
       const first = result.data?.[0] as
-        | { structuredData?: unknown; canonicalUrl?: string; warnings?: string[] }
+        | {
+            structuredData?: unknown;
+            canonicalUrl?: string;
+            warnings?: string[];
+            actionResults?: unknown[];
+            forEachItems?: number;
+            lowContent?: boolean;
+          }
         | undefined;
+      // The job's warnings include this URL's own plus any about credits running short.
+      const warnings = (result as { warnings?: string[] }).warnings ?? first?.warnings;
       // In json mode without a prompt/schema, content already IS the
       // structured data, so only add it separately when it isn't duplicated.
       const includeStructured = args.output !== "json";
@@ -462,13 +603,17 @@ Behavior notes:
         content: result.content,
         ...(includeStructured && first?.structuredData !== undefined ? { structuredData: first.structuredData } : {}),
         ...(first?.canonicalUrl ? { canonicalUrl: first.canonicalUrl } : {}),
-        ...(first?.warnings?.length ? { warnings: first.warnings } : {}),
+        ...(first?.actionResults?.length ? { actionResults: first.actionResults } : {}),
+        ...(first?.forEachItems !== undefined ? { forEachItems: first.forEachItems } : {}),
+        ...(warnings?.length ? { warnings } : {}),
         screenshots: result.screenshots,
         extractionEmpty: result.extraction_empty || undefined,
-        lowContent: result.data?.[0]?.lowContent || undefined,
+        lowContent: first?.lowContent || undefined,
         ...(usedFallback
           ? { note: "Initial fast attempt returned thin content, automatically retried with full browser rendering and a proxy." }
-          : {}),
+          : hasSteps && first?.lowContent && !args.useProxy
+            ? { note: "The page came back nearly empty. Steps are not re-run automatically. If the site blocks automated browsers, call again with useProxy: true." }
+            : {}),
         stats: result.stats,
       });
     });

@@ -35,7 +35,40 @@ const fakeApi = createServer((req, res) => {
           ? send(202, { status: "queued", jobId: "job-thin" })
           : send(202, { status: "queued", jobId: "job-good" });
       }
+      if (submitted.urls?.[0]?.url === "https://steps.example.com") return send(202, { status: "queued", jobId: "job-steps" });
+      if (submitted.urls?.[0]?.url === "https://instruction.example.com") return send(202, { status: "queued", jobId: "job-instr" });
+      if (submitted.urls?.[0]?.url === "https://step-fails.example.com") return send(202, { status: "queued", jobId: "job-step-fails" });
       return send(202, { status: "queued", jobId: "job-abc" });
+    }
+    if (req.method === "GET" && (req.url === "/api/scrape/job-steps" || req.url === "/api/scrape/job-instr")) {
+      // Thin content on purpose: a run with steps must never be retried on its own.
+      return send(200, {
+        status: "completed",
+        result: {
+          content: "logged in page",
+          data: [{
+            url: "https://steps.example.com",
+            success: true,
+            lowContent: true,
+            actionResults: [
+              { index: 1, type: "click", status: "skipped", durationMs: 2001, error: 'no element matches "#cookie-accept" (waited 2 seconds).' },
+              { index: 2, type: "evaluate", status: "ok", durationMs: 3, result: 10 },
+            ],
+            warnings: ['Action 1 (click) was skipped: no element matches "#cookie-accept" (waited 2 seconds).'],
+          }],
+          screenshots: [],
+          ai_extraction_failed: false,
+          warnings: ['Action 1 (click) was skipped: no element matches "#cookie-accept" (waited 2 seconds).'],
+          stats: { durationMs: 900, captchaSolvedCount: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        },
+        error: null,
+      });
+    }
+    if (req.method === "GET" && req.url === "/api/scrape/job-step-fails") {
+      return send(200, {
+        status: "failed",
+        error: 'Failed to scrape https://step-fails.example.com: Action 1 (click "#nope") failed: no element matches "#nope" (waited 1 seconds). Add "optional": true to that action to skip it when it can\'t be done.',
+      });
     }
     if (req.method === "GET" && req.url === "/api/scrape/job-abc") {
       scrapePollCount++;
@@ -332,6 +365,70 @@ test("spidra_scrape does not auto-escalate when scrapeMode or useProxy is explic
       JSON.parse(r.body).urls?.[0]?.url === "https://thin-then-good.example.com"
   );
   assert.equal(submits.length, 3, "no new submit beyond the previous test's two plus this one");
+});
+
+test("spidra_scrape lists every action type, and forEach can't nest", async () => {
+  const res = await client.request("tools/list");
+  const scrape = res.result.tools.find((t) => t.name === "spidra_scrape");
+  const text = JSON.stringify(scrape.inputSchema);
+  for (const type of ["hover", "select", "press", "waitFor", "scrollUntilEnd", "evaluate", "screenshot", "forEach"]) {
+    assert.ok(text.includes(`"${type}"`), `${type} is in the schema`);
+  }
+  assert.ok(text.includes('"optional"') && text.includes('"timeout"'));
+  assert.match(scrape.description, /single, LAST action/);
+  assert.match(scrape.description, /actionResults/);
+});
+
+test("spidra_scrape with actions goes straight to the browser and runs them once", async () => {
+  const actions = [
+    { type: "click", selector: "#cookie-accept", optional: true, timeout: 2000 },
+    { type: "evaluate", script: "document.querySelectorAll('.quote').length" },
+  ];
+  const result = await client.callTool("spidra_scrape", { url: "https://steps.example.com", actions });
+  assert.equal(result.isError ?? false, false);
+  const out = JSON.parse(result.content[0].text);
+  assert.equal(out.actionResults.length, 2);
+  assert.equal(out.actionResults[0].status, "skipped");
+  assert.equal(out.actionResults[1].result, 10);
+  assert.equal(out.warnings.length, 1);
+  assert.match(out.note, /not re-run automatically/);
+
+  const submits = recorded.filter((r) => r.method === "POST" && r.url === "/api/scrape" && JSON.parse(r.body).urls?.[0]?.url === "https://steps.example.com");
+  assert.equal(submits.length, 1, "thin content with actions is not retried");
+  const body = JSON.parse(submits[0].body);
+  assert.equal(body.scrapeMode, "default");
+  assert.equal(body.useProxy, false);
+  assert.deepEqual(body.urls[0].actions, actions);
+});
+
+test("spidra_scrape with an instruction goes to the browser and keeps the instruction", async () => {
+  const result = await client.callTool("spidra_scrape", { url: "https://instruction.example.com", instruction: "open the login page" });
+  assert.equal(result.isError ?? false, false);
+  const submits = recorded.filter((r) => r.method === "POST" && r.url === "/api/scrape" && JSON.parse(r.body).urls?.[0]?.url === "https://instruction.example.com");
+  assert.equal(submits.length, 1);
+  const body = JSON.parse(submits[0].body);
+  assert.equal(body.scrapeMode, "default");
+  assert.equal(body.urls[0].instruction, "open the login page");
+});
+
+test("spidra_scrape explains a failed step", async () => {
+  const result = await client.callTool("spidra_scrape", {
+    url: "https://step-fails.example.com",
+    actions: [{ type: "click", selector: "#nope", timeout: 1000 }],
+  });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /Action 1 \(click "#nope"\) failed/);
+  assert.match(result.content[0].text, /optional/);
+  assert.doesNotMatch(result.content[0].text, /API error 0/);
+});
+
+test("spidra_scrape rejects an unknown action type before calling the API", async () => {
+  const before = recorded.length;
+  const res = await client.request("tools/call", { name: "spidra_scrape", arguments: { url: "https://example.com", actions: [{ type: "teleport" }] } });
+  // An invalid-params JSON-RPC error (or a tool error), and nothing sent to the API.
+  assert.ok(res.error || res.result?.isError, JSON.stringify(res));
+  assert.match(JSON.stringify(res.error ?? res.result), /type/);
+  assert.equal(recorded.length, before);
 });
 
 test("spidra_crawl returns a jobId and polling instructions without waiting", async () => {

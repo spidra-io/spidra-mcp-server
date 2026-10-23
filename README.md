@@ -21,7 +21,7 @@ All you have to do is describe what you want in plain language, and the assistan
 - Extract exactly the fields you want using plain-language prompts or JSON schemas
 - Process up to 50 URLs in parallel with one request
 - Crawl whole sites by describing which links to follow in plain English
-- Run browser actions before scraping: click, type, scroll, or loop over elements
+- Run browser actions before scraping: click, type, select, press keys, wait for elements, scroll to the end, run JavaScript, take screenshots, or loop over elements
 - Route through residential proxies for geo-restricted or bot-protected sites
 - Hosted Streamable HTTP endpoint at `mcp.spidra.io`, connect with one URL, nothing to install
 - OAuth login for OAuth-capable clients, or a plain API key header for everything else
@@ -487,18 +487,38 @@ For anything involving more than one URL, even just comparing two pages, use `sp
 }
 ```
 
+**Usage example (log in first with browser actions):**
+
+```json
+{
+  "name": "spidra_scrape",
+  "arguments": {
+    "url": "https://quotes.toscrape.com/login",
+    "actions": [
+      { "type": "click", "selector": "#cookie-accept", "optional": true, "timeout": 2000 },
+      { "type": "type", "selector": "#username", "value": "demo" },
+      { "type": "type", "selector": "#password", "value": "demo" },
+      { "type": "click", "selector": "input[type='submit']" },
+      { "type": "waitFor", "selector": "a[href='/logout']" }
+    ],
+    "prompt": "List the first 3 quotes with their authors",
+    "output": "json"
+  }
+}
+```
+
 **Other options worth knowing:**
 
-- `actions`: browser steps to run before extraction, in order. Supports `click`, `type`, `check`, `uncheck`, `wait`, `scroll`, and `forEach` (loop over every matching element, optionally with pagination). Use this to dismiss cookie banners, fill in a search box, or expand hidden content before the scrape happens.
-- `instruction`: AI Navigate mode, a single natural-language instruction handling all the interactions automatically (e.g. "search for wireless headphones and open the first result") instead of listing out `actions` steps by hand.
+- `actions`: browser steps to run in order before the page is captured (50 at most). Supports `click`, `type`, `check`, `uncheck`, `hover`, `select`, `press`, `wait`, `waitFor`, `scroll`, `scrollUntilEnd` (keep scrolling or clicking "load more" until the page stops growing), `evaluate` (run JavaScript and get its value back), `screenshot`, and `forEach` (go through every matching element, optionally across results pages; it must be the single, last action). `selector` takes a CSS selector, an XPath or a plain-English description. A step that can't be done fails the job and says which one and why, unless it has `optional: true`, in which case it is skipped. Every step except `forEach` also takes `timeout`.
+- `instruction`: one plain-English task instead of steps (e.g. "search for wireless headphones and open the first result"). Use `actions` or `instruction`, not both.
 - `cookies`: a raw Cookie header string for pages behind a login, for example `"session=abc123; token=xyz"`.
 - `useProxy` and `proxyCountry`: route through a residential proxy, optionally pinned to a country like `"us"` or `"de"`. Use for geo-restricted content or sites that block datacenter traffic.
 - `screenshot`: capture a viewport screenshot. The result includes a URL to the image.
 - `extractContentOnly`: strip navigation, ads, and boilerplate before the AI sees the page.
-- `scrapeMode`: `"fast"` uses plain HTTP with no browser. Cheaper and quicker, but it cannot run actions or render JavaScript-heavy pages. `"default"` uses a real browser.
+- `scrapeMode`: `"fast"` uses plain HTTP with no browser. Cheaper and quicker, but it can't render JavaScript-heavy pages. `"default"` uses a real browser. Left unset, the tool tries fast first and moves to a browser with a proxy only if the page comes back nearly empty. A call with `actions` or `instruction` always runs in a browser, once: steps such as a form submission are never repeated automatically.
 - `output`: `"markdown"` (the default) or `"json"`. With `"json"` and no prompt or schema, a page handled by one of Spidra's site scrapers (Amazon, LinkedIn, Google Maps and others) returns its structured data as is, with no AI. Other pages use the default AI extraction.
 
-**Returns:** the extracted `content`, any `screenshots`, and `stats` with token counts and timing. Markdown is the readable page only. When a site scraper handled the page, the result also has `structuredData`, an object with the page's fields. `canonicalUrl` appears when the site scraper used a cleaned link, and `warnings` lists anything you asked for that was not done. If the wait window is ever exceeded, the job keeps running on the server and the error message hands the assistant the job ID to check with `spidra_check_scrape_status`. Nothing is lost.
+**Returns:** the extracted `content`, any `screenshots`, and `stats` with token counts and timing. Markdown is the readable page only. When a site scraper handled the page, the result also has `structuredData`, an object with the page's fields. `canonicalUrl` appears when the site scraper used a cleaned link, and `warnings` lists anything you asked for that was not done, such as a skipped optional step. With `actions`, `actionResults` reports each step in order (`ok`, `skipped` or `failed`, with the reason, an `evaluate` step's value or a screenshot's link), and `forEachItems` says how many items a `forEach` captured. If the wait window is ever exceeded, the job keeps running on the server and the error message hands the assistant the job ID to check with `spidra_check_scrape_status`. Nothing is lost.
 
 ### 4. Check scrape status (`spidra_check_scrape_status`)
 
