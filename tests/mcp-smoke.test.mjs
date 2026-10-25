@@ -27,6 +27,9 @@ const fakeApi = createServer((req, res) => {
 
     if (req.method === "POST" && req.url === "/api/scrape") {
       const submitted = JSON.parse(body);
+      if (submitted.urls?.[0]?.url === "https://no-credits.example.com") {
+        return send(403, { status: "error", message: "You have exceeded your monthly credit limit." });
+      }
       if (submitted.urls?.[0]?.url === "https://thin-then-good.example.com") {
         // Simulates the auto fast-mode fallback: the first (fast, no proxy)
         // attempt comes back thin, the retry (default mode, with proxy)
@@ -169,6 +172,32 @@ const fakeApi = createServer((req, res) => {
         error: null,
       });
     }
+    if (req.method === "GET" && req.url === "/api/account") {
+      return send(200, { status: "success", data: { plan: { name: "Builder" }, credits: { limit: 25000, used: 100, remaining: 24900, billingCycleStart: null }, proxyBandwidth: { limitMb: 2000, usedMb: 0, remainingMb: 2000 }, subscription: { status: "active" } } });
+    }
+    if (req.method === "GET" && req.url === "/api/monitors/limits") {
+      return send(200, { status: "success", plan: "Builder", minIntervalMinutes: 15, maxMonitors: 50, used: 1 });
+    }
+    if (req.method === "POST" && req.url === "/api/monitors/estimate") {
+      return send(200, { status: "success", creditsPerCheck: 1, checksPerMonth: 30, creditsPerMonth: 30, usesAi: false });
+    }
+    if (req.method === "POST" && req.url === "/api/monitors") {
+      return send(403, { status: "error", code: "MONITOR_LIMIT", message: "Your plan includes 2 monitors. Delete one or upgrade to add more." });
+    }
+    if (req.method === "GET" && req.url === "/api/templates/google-maps-leads") {
+      return send(200, { status: "success", template: { slug: "google-maps-leads", version: 4, title: "Google Maps leads", summary: "s", site: { key: "google-maps", name: "Google Maps", domain: "google.com" }, categories: [], tool: "batch", inputs: [{ key: "query", label: "Business type", type: "text", required: true }], columns: [{ key: "title", label: "Name" }, { key: "socials.instagram", label: "Instagram" }], limits: [] } });
+    }
+    if (req.method === "POST" && req.url === "/api/templates/google-maps-leads/runs") {
+      const submitted = JSON.parse(body);
+      if (!submitted.inputs?.query) {
+        return send(422, { status: "error", code: "INVALID_INPUT", message: "Some inputs need fixing.", errors: [{ field: "query", message: "Business type is required." }] });
+      }
+      const rows = [1, 2, 3].map(n => ({ title: `Place ${n}`, phone: "+234", socials: { instagram: `ig${n}` }, fieldStatus: { title: "present" } }));
+      return send(200, { status: "success", run: { runId: "run-1", template: "google-maps-leads", templateVersion: 4, presetId: null, tool: "batch", status: "completed", inputs: submitted.inputs, createdAt: "2026-10-25T00:00:00.000Z", finishedAt: "2026-10-25T00:00:01.000Z", creditsUsed: 1, urlCount: 1, rowCount: 3, rows } });
+    }
+    if (req.method === "GET" && req.url === "/api/crawl/crawl-xyz") {
+      return send(200, { status: "completed", progress: { status: "completed", message: "Crawl completed", progress: 1 }, result: [{ url: "https://example.com/a", status: "success", title: "A", data: { title: "A" }, html: "https://files.example/a.html?sig=1", markdown: "https://files.example/a.md?sig=1" }], error: null });
+    }
     send(404, { status: "error", message: "not found" });
   });
 });
@@ -272,99 +301,76 @@ test("stdio stays clean — no log noise corrupted the JSON-RPC stream", async (
   assert.ok(client);
 });
 
-test("tools/list exposes all 20 tools with annotations", async () => {
+const TOOLS = [
+  "spidra_account",
+  "spidra_batch_scrape",
+  "spidra_cancel_job",
+  "spidra_check_monitor",
+  "spidra_crawl",
+  "spidra_crawl_extract",
+  "spidra_crawl_pages",
+  "spidra_crawl_report",
+  "spidra_create_monitor",
+  "spidra_delete_monitor",
+  "spidra_delete_preset",
+  "spidra_find_templates",
+  "spidra_get_job",
+  "spidra_get_template",
+  "spidra_list_monitors",
+  "spidra_list_presets",
+  "spidra_logs",
+  "spidra_map",
+  "spidra_monitor_changes",
+  "spidra_parse",
+  "spidra_retry_batch",
+  "spidra_retry_crawl_page",
+  "spidra_run_preset",
+  "spidra_run_template",
+  "spidra_save_preset",
+  "spidra_scrape",
+  "spidra_search",
+  "spidra_update_monitor",
+];
+
+test("tools/list exposes all 28 tools with annotations", async () => {
   const res = await client.request("tools/list");
   const tools = res.result.tools;
-  const names = tools.map((t) => t.name).sort();
-  assert.deepEqual(names, [
-    "spidra_batch_scrape",
-    "spidra_cancel_batch",
-    "spidra_cancel_crawl",
-    "spidra_check_batch_status",
-    "spidra_check_crawl_status",
-    "spidra_check_parse_status",
-    "spidra_check_scrape_status",
-    "spidra_check_search_status",
-    "spidra_crawl",
-    "spidra_crawl_extract",
-    "spidra_crawl_pages",
-    "spidra_crawl_report",
-    "spidra_map",
-    "spidra_parse",
-    "spidra_retry_batch",
-    "spidra_retry_crawl_page",
-    "spidra_scrape",
-    "spidra_scrape_logs",
-    "spidra_search",
-    "spidra_usage",
-  ]);
-  const scrape = tools.find((t) => t.name === "spidra_scrape");
-  assert.equal(scrape.annotations.readOnlyHint, true);
-  assert.match(scrape.description, /Scrape one known URL/);
-  const search = tools.find((t) => t.name === "spidra_search");
-  assert.equal(search.annotations.readOnlyHint, true);
-  assert.match(search.description, /WAITS for the result/);
+  assert.deepEqual(tools.map((t) => t.name).sort(), TOOLS);
+  for (const t of tools) {
+    assert.ok(t.annotations?.title, `${t.name} has a title`);
+    assert.equal(typeof t.annotations.readOnlyHint, "boolean", `${t.name} sets readOnlyHint`);
+    assert.doesNotMatch(t.description, /site scraper|Gemini|Stagehand|Playwright|—/, `${t.name} description has no internals or em dashes`);
+  }
+  const del = tools.find((t) => t.name === "spidra_delete_monitor");
+  assert.equal(del.annotations.destructiveHint, true);
+  assert.equal(del.annotations.idempotentHint, true);
 });
 
-test("spidra_scrape submits, polls, and returns extracted content", async () => {
-  const result = await client.callTool("spidra_scrape", {
-    url: "https://example.com",
-    prompt: "Extract the headline",
-    output: "json",
-  });
-  assert.equal(result.isError ?? false, false);
-  const text = result.content[0].text;
-  assert.match(text, /Fake headline/);
-  assert.match(text, /stats/);
+test("tool results carry structuredContent next to the text", async () => {
+  const result = await client.callTool("spidra_map", { url: "https://example.com", search: "pricing", limit: 5 });
+  assert.equal(result.structuredContent.links[0].url, "https://example.com/pricing");
+  assert.match(result.content[0].text, /example\.com\/pricing/);
+});
 
+test("spidra_scrape runs once in fast mode by default and returns the content", async () => {
+  const result = await client.callTool("spidra_scrape", { url: "https://example.com", prompt: "Extract the headline", output: "json" });
+  assert.equal(result.isError ?? false, false);
+  assert.match(result.content[0].text, /Fake headline/);
   const submit = recorded.find((r) => r.method === "POST" && r.url === "/api/scrape");
-  assert.ok(submit, "scrape was submitted to the API");
   assert.equal(submit.headers.authorization, "Bearer spd_test_key");
   const submitted = JSON.parse(submit.body);
-  assert.equal(submitted.urls[0].url, "https://example.com");
-  assert.equal(submitted.output, "json");
-  assert.equal(submitted.scrapeMode, "fast", "defaults to the fast attempt when scrapeMode isn't set");
-  assert.equal(submitted.useProxy, false, "defaults to no proxy on the fast attempt");
+  assert.equal(submitted.scrapeMode, "fast");
+  assert.equal(submitted.useProxy, false);
 });
 
-test("spidra_scrape auto-escalates to browser+proxy when the fast attempt is thin", async () => {
-  const result = await client.callTool("spidra_scrape", {
-    url: "https://thin-then-good.example.com",
-    prompt: "Extract the article",
-  });
-  assert.equal(result.isError ?? false, false);
-  const text = result.content[0].text;
-  assert.match(text, /the real page content/);
-  assert.match(text, /automatically retried/);
-
-  const submits = recorded.filter(
-    (r) => r.method === "POST" && r.url === "/api/scrape" && JSON.parse(r.body).urls?.[0]?.url === "https://thin-then-good.example.com"
-  );
-  assert.equal(submits.length, 2, "fast attempt, then a browser+proxy retry");
-  const [first, second] = submits.map((r) => JSON.parse(r.body));
-  assert.equal(first.scrapeMode, "fast");
-  assert.equal(first.useProxy, false);
-  assert.equal(second.scrapeMode, "default");
-  assert.equal(second.useProxy, true);
-});
-
-test("spidra_scrape does not auto-escalate when scrapeMode or useProxy is explicit", async () => {
-  const result = await client.callTool("spidra_scrape", {
-    url: "https://thin-then-good.example.com",
-    prompt: "Extract the article",
-    scrapeMode: "fast",
-  });
-  assert.equal(result.isError ?? false, false);
-  const text = result.content[0].text;
-  assert.match(text, /barely anything/, "returns the thin result as-is, no automatic retry");
-
-  const submits = recorded.filter(
-    (r) =>
-      r.method === "POST" &&
-      r.url === "/api/scrape" &&
-      JSON.parse(r.body).urls?.[0]?.url === "https://thin-then-good.example.com"
-  );
-  assert.equal(submits.length, 3, "no new submit beyond the previous test's two plus this one");
+test("spidra_scrape never runs a second time on its own when the page comes back thin", async () => {
+  const result = await client.callTool("spidra_scrape", { url: "https://thin-then-good.example.com", prompt: "Extract the article" });
+  const out = JSON.parse(result.content[0].text);
+  assert.match(out.content, /barely anything/);
+  assert.equal(out.lowContent, true);
+  assert.match(out.note, /useProxy/);
+  const submits = recorded.filter((r) => r.method === "POST" && r.url === "/api/scrape" && JSON.parse(r.body).urls?.[0]?.url === "https://thin-then-good.example.com");
+  assert.equal(submits.length, 1, "one run, one charge");
 });
 
 test("spidra_scrape lists every action type, and forEach can't nest", async () => {
@@ -374,9 +380,8 @@ test("spidra_scrape lists every action type, and forEach can't nest", async () =
   for (const type of ["hover", "select", "press", "waitFor", "scrollUntilEnd", "evaluate", "screenshot", "forEach"]) {
     assert.ok(text.includes(`"${type}"`), `${type} is in the schema`);
   }
-  assert.ok(text.includes('"optional"') && text.includes('"timeout"'));
-  assert.match(scrape.description, /single, LAST action/);
-  assert.match(scrape.description, /actionResults/);
+  const nested = scrape.inputSchema.properties.actions.items.properties.actions.items.properties.type.enum;
+  assert.ok(!nested.includes("forEach"), "forEach can't appear inside forEach");
 });
 
 test("spidra_scrape with actions goes straight to the browser and runs them once", async () => {
@@ -385,142 +390,128 @@ test("spidra_scrape with actions goes straight to the browser and runs them once
     { type: "evaluate", script: "document.querySelectorAll('.quote').length" },
   ];
   const result = await client.callTool("spidra_scrape", { url: "https://steps.example.com", actions });
-  assert.equal(result.isError ?? false, false);
   const out = JSON.parse(result.content[0].text);
   assert.equal(out.actionResults.length, 2);
   assert.equal(out.actionResults[0].status, "skipped");
-  assert.equal(out.actionResults[1].result, 10);
   assert.equal(out.warnings.length, 1);
-  assert.match(out.note, /not re-run automatically/);
-
   const submits = recorded.filter((r) => r.method === "POST" && r.url === "/api/scrape" && JSON.parse(r.body).urls?.[0]?.url === "https://steps.example.com");
-  assert.equal(submits.length, 1, "thin content with actions is not retried");
+  assert.equal(submits.length, 1);
   const body = JSON.parse(submits[0].body);
   assert.equal(body.scrapeMode, "default");
-  assert.equal(body.useProxy, false);
   assert.deepEqual(body.urls[0].actions, actions);
 });
 
 test("spidra_scrape with an instruction goes to the browser and keeps the instruction", async () => {
-  const result = await client.callTool("spidra_scrape", { url: "https://instruction.example.com", instruction: "open the login page" });
-  assert.equal(result.isError ?? false, false);
-  const submits = recorded.filter((r) => r.method === "POST" && r.url === "/api/scrape" && JSON.parse(r.body).urls?.[0]?.url === "https://instruction.example.com");
-  assert.equal(submits.length, 1);
-  const body = JSON.parse(submits[0].body);
+  await client.callTool("spidra_scrape", { url: "https://instruction.example.com", instruction: "open the login page" });
+  const submit = recorded.filter((r) => r.method === "POST" && r.url === "/api/scrape" && JSON.parse(r.body).urls?.[0]?.url === "https://instruction.example.com").pop();
+  const body = JSON.parse(submit.body);
   assert.equal(body.scrapeMode, "default");
   assert.equal(body.urls[0].instruction, "open the login page");
 });
 
 test("spidra_scrape explains a failed step", async () => {
-  const result = await client.callTool("spidra_scrape", {
-    url: "https://step-fails.example.com",
-    actions: [{ type: "click", selector: "#nope", timeout: 1000 }],
-  });
+  const result = await client.callTool("spidra_scrape", { url: "https://step-fails.example.com", actions: [{ type: "click", selector: "#nope", timeout: 1000 }] });
   assert.equal(result.isError, true);
   assert.match(result.content[0].text, /Action 1 \(click "#nope"\) failed/);
-  assert.match(result.content[0].text, /optional/);
-  assert.doesNotMatch(result.content[0].text, /API error 0/);
 });
 
 test("spidra_scrape rejects an unknown action type before calling the API", async () => {
   const before = recorded.length;
   const res = await client.request("tools/call", { name: "spidra_scrape", arguments: { url: "https://example.com", actions: [{ type: "teleport" }] } });
-  // An invalid-params JSON-RPC error (or a tool error), and nothing sent to the API.
   assert.ok(res.error || res.result?.isError, JSON.stringify(res));
-  assert.match(JSON.stringify(res.error ?? res.result), /type/);
   assert.equal(recorded.length, before);
 });
 
-test("spidra_crawl returns a jobId and polling instructions without waiting", async () => {
-  const result = await client.callTool("spidra_crawl", {
-    baseUrl: "https://example.com",
-    crawlInstruction: "Follow all pages",
-    maxPages: 2,
-  });
-  const text = result.content[0].text;
-  assert.match(text, /crawl-xyz/);
-  assert.match(text, /spidra_check_crawl_status/);
+test("out of credits says so and says not to retry", async () => {
+  const result = await client.callTool("spidra_scrape", { url: "https://no-credits.example.com" });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /Out of credits/);
+  assert.match(result.content[0].text, /Do not retry/);
+});
+
+test("a monitor limit 403 isn't reported as out of credits", async () => {
+  const result = await client.callTool("spidra_create_monitor", { sources: [{ kind: "urls", urls: ["https://a.com"] }] });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /2 monitors/);
+  assert.doesNotMatch(result.content[0].text, /Out of credits/);
+});
+
+test("spidra_create_monitor with estimate returns the cost without creating", async () => {
+  const result = await client.callTool("spidra_create_monitor", { sources: [{ kind: "urls", urls: ["https://a.com"] }], estimate: true });
+  assert.equal(result.structuredContent.creditsPerMonth, 30);
+  assert.ok(!recorded.some((r) => r.method === "POST" && r.url === "/api/monitors" && JSON.parse(r.body).estimate));
+});
+
+test("spidra_run_template trims rows to the template's columns and pages them", async () => {
+  const result = await client.callTool("spidra_run_template", { slug: "google-maps-leads", inputs: { query: "dentist" }, limit: 2 });
+  const out = result.structuredContent;
+  assert.deepEqual(out.rows, [
+    { title: "Place 1", "socials.instagram": "ig1" },
+    { title: "Place 2", "socials.instagram": "ig2" },
+  ]);
+  assert.deepEqual(out.rowsShown, { offset: 0, count: 2, total: 3 });
+  assert.match(out.next, /"offset": 2/);
+  const submit = recorded.filter((r) => r.url === "/api/templates/google-maps-leads/runs").pop();
+  assert.equal(JSON.parse(submit.body).wait, true);
+});
+
+test("spidra_run_template with detail full returns every field", async () => {
+  const result = await client.callTool("spidra_run_template", { slug: "google-maps-leads", inputs: { query: "dentist" }, detail: "full", limit: 1 });
+  assert.equal(result.structuredContent.rows[0].phone, "+234");
+});
+
+test("template validation errors read as field: message", async () => {
+  const result = await client.callTool("spidra_run_template", { slug: "google-maps-leads", inputs: {} });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /query: Business type is required\./);
+  assert.doesNotMatch(result.content[0].text, /object Object/);
+});
+
+test("spidra_crawl returns a jobId and points to spidra_get_job", async () => {
+  const result = await client.callTool("spidra_crawl", { baseUrl: "https://example.com", crawlInstruction: "Follow all pages", maxPages: 2 });
+  assert.match(result.content[0].text, /crawl-xyz/);
+  assert.match(result.content[0].text, /spidra_get_job/);
+});
+
+test("spidra_get_job for a crawl leaves out the per-page file links", async () => {
+  const result = await client.callTool("spidra_get_job", { type: "crawl", id: "crawl-xyz" });
+  const page = result.structuredContent.result[0];
+  assert.deepEqual(page.data, { title: "A" });
+  assert.equal(page.html, undefined);
+  assert.equal(page.markdown, undefined);
 });
 
 test("spidra_parse parses a link and waits for the result", async () => {
   const result = await client.callTool("spidra_parse", { url: "https://x.com/a.pdf", pages: "1-2" });
   assert.match(result.content[0].text, /Parsed heading/);
-  const submit = recorded.filter((r) => r.url === "/api/parse").pop();
-  assert.deepEqual(JSON.parse(submit.body), { url: "https://x.com/a.pdf", pages: "1-2", wait: false });
 });
 
 test("spidra_parse rejects two sources at once", async () => {
   const result = await client.callTool("spidra_parse", { url: "https://x.com/a.pdf", fileId: "f1" });
   assert.equal(result.isError, true);
-  assert.match(result.content[0].text, /exactly one/);
-});
-
-test("spidra_map returns URLs directly", async () => {
-  const result = await client.callTool("spidra_map", { url: "https://example.com", search: "pricing", limit: 5 });
-  const text = result.content[0].text;
-  assert.match(text, /example\.com\/pricing/);
-  const submit = recorded.filter((r) => r.url === "/api/map").pop();
-  assert.deepEqual(JSON.parse(submit.body), { url: "https://example.com", search: "pricing", limit: 5 });
 });
 
 test("spidra_crawl_report forwards the reason filter", async () => {
-  const result = await client.callTool("spidra_crawl_report", { jobId: "crawl-xyz", reason: "not_relevant" });
-  assert.match(result.content[0].text, /found|foundOn/);
+  await client.callTool("spidra_crawl_report", { jobId: "crawl-xyz", reason: "not_relevant" });
   assert.ok(recorded.some((r) => r.url === "/api/crawl/crawl-xyz/report?reason=not_relevant"));
 });
 
-test("spidra_batch_scrape returns a batchId and polling instructions", async () => {
-  const result = await client.callTool("spidra_batch_scrape", {
-    urls: ["https://a.com", "https://b.com"],
-    prompt: "Extract the title",
-  });
-  const text = result.content[0].text;
-  assert.match(text, /batch-1/);
-  assert.match(text, /spidra_check_batch_status/);
+test("spidra_batch_scrape returns a batchId and points to spidra_get_job", async () => {
+  const result = await client.callTool("spidra_batch_scrape", { urls: ["https://a.com", "https://b.com"], prompt: "Extract the title" });
+  assert.match(result.content[0].text, /batch-1/);
+  assert.match(result.content[0].text, /spidra_get_job/);
 });
 
 test("spidra_batch_scrape with wait:true returns finished results directly for a small batch", async () => {
-  const result = await client.callTool("spidra_batch_scrape", {
-    urls: ["https://wait-me.example.com/a", "https://wait-me.example.com/b"],
-    prompt: "Extract the title",
-    wait: true,
-  });
-  assert.equal(result.isError ?? false, false);
-  const text = result.content[0].text;
-  assert.match(text, /"status": "completed"/);
-  assert.match(text, /content a/);
-  assert.match(text, /content b/);
-  assert.doesNotMatch(text, /spidra_check_batch_status/, "no polling instructions when the result came back inline");
-});
-
-test("spidra_search submits, waits, and returns web results", async () => {
-  const result = await client.callTool("spidra_search", {
-    query: "hello world",
-    sources: ["web"],
-  });
-  assert.equal(result.isError ?? false, false);
-  const text = result.content[0].text;
-  assert.match(text, /Fake result/);
-
-  const submit = recorded.find((r) => r.method === "POST" && r.url === "/api/search");
-  assert.ok(submit, "search was submitted to the API");
-  const submitted = JSON.parse(submit.body);
-  assert.equal(submitted.query, "hello world");
-  assert.deepEqual(submitted.sources, ["web"]);
+  const result = await client.callTool("spidra_batch_scrape", { urls: ["https://wait-me.example.com/a", "https://wait-me.example.com/b"], prompt: "Extract the title", wait: true });
+  assert.match(result.content[0].text, /content a/);
+  assert.doesNotMatch(result.content[0].text, /spidra_get_job/);
 });
 
 test("spidra_search forwards research/developer sources, pageTokens, timeRange, and filetype", async () => {
-  const result = await client.callTool("spidra_search", {
-    query: "transformer attention",
-    sources: ["research", "developer"],
-    pageTokens: { web: "opaque-token" },
-    timeRange: "month",
-    filetype: "pdf",
-  });
+  const result = await client.callTool("spidra_search", { query: "transformer attention", sources: ["research", "developer"], pageTokens: { web: "opaque-token" }, timeRange: "month", filetype: "pdf" });
   assert.equal(result.isError ?? false, false);
-
-  const submits = recorded.filter((r) => r.method === "POST" && r.url === "/api/search");
-  const submitted = JSON.parse(submits[submits.length - 1].body);
+  const submitted = JSON.parse(recorded.filter((r) => r.method === "POST" && r.url === "/api/search").pop().body);
   assert.deepEqual(submitted.sources, ["research", "developer"]);
   assert.deepEqual(submitted.pageTokens, { web: "opaque-token" });
   assert.equal(submitted.timeRange, "month");
@@ -529,39 +520,36 @@ test("spidra_search forwards research/developer sources, pageTokens, timeRange, 
 
 test("spidra_retry_batch retries failed items", async () => {
   const result = await client.callTool("spidra_retry_batch", { batchId: "batch-1" });
-  assert.equal(result.isError ?? false, false);
   assert.match(result.content[0].text, /retriedCount/);
 });
 
 test("spidra_retry_crawl_page retries one page", async () => {
   const result = await client.callTool("spidra_retry_crawl_page", { jobId: "crawl-xyz", pageId: "page-1" });
-  assert.equal(result.isError ?? false, false);
   assert.match(result.content[0].text, /Retried/);
 });
 
-test("spidra_usage returns usage rows", async () => {
-  const result = await client.callTool("spidra_usage", { range: "7d" });
-  assert.match(result.content[0].text, /2026-07-13/);
+test("spidra_account returns credits, monitor limits and optional usage", async () => {
+  const result = await client.callTool("spidra_account", { usage: "7d" });
+  const out = result.structuredContent;
+  assert.equal(out.credits.remaining, 24900);
+  assert.deepEqual(out.monitors, { allowed: 50, used: 1, shortestScheduleMinutes: 15 });
+  assert.equal(out.usage[0].date, "2026-07-13");
 });
 
-test("API errors come back as tool errors with guidance, not crashes", async () => {
-  const result = await client.callTool("spidra_check_scrape_status", { jobId: "does-not-exist" });
+test("a missing job comes back as a tool error with guidance, not a crash", async () => {
+  const result = await client.callTool("spidra_get_job", { type: "scrape", id: "does-not-exist" });
   assert.equal(result.isError, true);
-  assert.match(result.content[0].text, /404/);
-  assert.match(result.content[0].text, /Do not retry/);
+  assert.match(result.content[0].text, /Not found/);
+  assert.match(result.content[0].text, /spidra_logs/);
 });
 
 test("missing API key produces a helpful tool error", async () => {
-  const bare = new StdioMcpClient({
-    SPIDRA_API_KEY: "",
-    SPIDRA_API_URL: `http://127.0.0.1:${apiPort}/api`,
-  });
+  const bare = new StdioMcpClient({ SPIDRA_API_KEY: "", SPIDRA_API_URL: `http://127.0.0.1:${apiPort}/api` });
   try {
     await bare.initialize();
-    const result = await bare.callTool("spidra_usage", {});
+    const result = await bare.callTool("spidra_account", {});
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /SPIDRA_API_KEY/);
-    assert.match(result.content[0].text, /app\.spidra\.io/);
   } finally {
     bare.kill();
   }

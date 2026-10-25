@@ -10,24 +10,24 @@
 
 The official [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for [Spidra](https://spidra.io).
 
-MCP is the standard that lets AI assistants use external tools. When you connect this server to an assistant like Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, or Antigravity, the assistant gains the ability to search the web, scrape pages, process lists of URLs, and crawl entire websites on its own. 
+MCP is the standard that lets AI assistants use external tools. When you connect this server to an assistant like Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, or Antigravity, the assistant can search the web, read pages, crawl sites, parse documents, run ready-made templates and watch pages for changes, on its own.
 
 All you have to do is describe what you want in plain language, and the assistant picks the right Spidra tool, runs it, and works with the extracted data directly in the conversation.
 
 ## Features
 
-- Search the web, news, images, or video, and optionally get each result's full page content in the same call
-- Scrape any page and get clean markdown or structured JSON back
-- Extract exactly the fields you want using plain-language prompts or JSON schemas
-- Process up to 50 URLs in parallel with one request
-- Crawl whole sites by describing which links to follow in plain English
-- Run browser actions before scraping: click, type, select, press keys, wait for elements, scroll to the end, run JavaScript, take screenshots, or loop over elements
-- Route through residential proxies for geo-restricted or bot-protected sites
-- Hosted Streamable HTTP endpoint at `mcp.spidra.io`, connect with one URL, nothing to install
-- OAuth login for OAuth-capable clients, or a plain API key header for everything else
-- Also runs locally over stdio, or as your own self-hosted HTTP service
-- Built-in guidance that keeps the assistant from wasting your credits
-- Automatic retries for flaky network moments, with clear typed errors otherwise
+- Search the web, news, images, videos, research papers and GitHub, and read each result's page in the same call
+- Read any page as Markdown, or get exactly the fields you describe as JSON, with a prompt or a JSON schema
+- Links from popular sites (Amazon, Google Maps, LinkedIn, YouTube, Zillow, Indeed and more) come back with their data already in named fields
+- Read 2 to 50 URLs at once, each with its own result
+- List a site's URLs in seconds, or crawl it for every page of one kind
+- Parse PDF, Word, Excel and PowerPoint files, by link or as a file
+- Run ready-made templates: Google Maps leads with emails, Amazon keyword rank, LinkedIn and Indeed jobs, Google Flights prices and more than 90 others
+- Save jobs as presets, and watch templates, presets or pages with monitors that alert by email, webhook, Slack or Discord
+- Browser actions before reading a page: click, type, select, scroll to the end, run JavaScript, loop over a list
+- Stealth Mode through residential proxies for sites that block automated visits or vary by country
+- Hosted at `mcp.spidra.io` with OAuth or an API key, or run it locally over stdio
+- Built to protect your credits: the narrowest tool first, no hidden second runs, and errors that say whether to retry
 
 ## Before you start
 
@@ -300,19 +300,21 @@ This is exactly how the hosted `https://mcp.spidra.io/mcp` endpoint runs in prod
 
 ## Try it
 
-Once connected, just ask for web data in normal language. You never call the tools by name; the assistant does that for you. Some things to try:
+Once connected, ask for web data in normal language. You never call the tools by name; the assistant does that. Some things to try:
 
-> "Search for the best espresso machines of 2026 and summarize the top 3."
+> "Search for the best espresso machines and summarize the top 3."
 
-> "Scrape https://news.ycombinator.com and give me the top 5 stories with their points."
+> "Get me 20 dentists in Ikeja, Lagos from Google Maps with their phone numbers and websites."
 
 > "Compare the pricing pages of stripe.com and paddle.com and tell me which is cheaper for a small SaaS."
 
-> "Here are 12 product URLs. Get me the name, price, and rating for each one as a table."
+> "Here are 12 product URLs. Get me the name, price and rating for each one as a table."
 
-> "Crawl the first 10 pages of docs.spidra.io and summarize what the product does."
+> "Read pages 1 to 3 of https://arxiv.org/pdf/1706.03762 and summarize the method."
 
-If the assistant answers with real data from those pages, everything is working.
+> "Watch this Amazon product every day and tell me when the price drops."
+
+If the assistant answers with real data, everything is working.
 
 ## Configuration
 
@@ -329,560 +331,72 @@ On the HTTP transport (self-hosted or hosted), the API key can also be sent per 
 
 ## How to choose a tool
 
-This section is written for humans, but the same guidance is embedded in the tool descriptions, so the assistant follows it on its own.
-
-The first question is whether you already know the URL:
-
-- **You don't know the URL yet:** use **search**. It finds pages, news, images, or videos for a query, and can optionally fetch each web result's actual page content in the same call.
-- **You know one URL and want its content:** use **scrape**.
-- **You know more than one URL, even just two, even to compare them:** use **batch scrape**. Every URL is processed independently and returns its own result, that's true whether you want the same fields from 50 product pages or a comparison of two pricing pages, the comparison itself is something the assistant does across the two clean results, not something a single scrape call should try to do internally.
-- **You have a document, not a web page:** use **parse**. It turns a PDF, Word, Excel or PowerPoint file (a link, or a small file the user gave you) into Markdown, page by page, and can extract fields as JSON.
-- **You want to see which pages a site has before scraping:** use **map**. It lists a site's URLs in a few seconds for 1 credit, ranked by a search if you give one, so the assistant can scrape just the right pages.
-- **You don't know the page URLs at all, just a starting point:** use **crawl**. You give it one starting URL and a plain-English instruction about which links to follow, and it discovers the pages itself.
-
-### Quick reference
-
-| Tool | Best for | Waits or polls? |
-|---|---|---|
-| `spidra_search` | Finding pages, news, images, videos, papers, or GitHub issues/PRs for a query | Waits, returns the result directly |
-| `spidra_check_search_status` | Re-checking a search that outlived its wait window (rare) | Instant lookup |
-| `spidra_scrape` | Extracted content from one known URL | Waits, returns the result directly |
-| `spidra_check_scrape_status` | Re-checking a scrape that outlived its wait window | Instant lookup |
-| `spidra_batch_scrape` | Separate results for each of 2 to 50 known URLs | Returns a `batchId`, assistant polls |
-| `spidra_check_batch_status` | Progress and per-URL results for a batch | Instant lookup |
-| `spidra_retry_batch` | Re-running just the failed items in a finished batch | Instant |
-| `spidra_cancel_batch` | Stopping a batch you no longer need | Instant |
-| `spidra_parse` | Turning a PDF, Word, Excel or PowerPoint document into Markdown or JSON | Waits, returns the result directly |
-| `spidra_check_parse_status` | Checking a parse that outlived its wait | Instant lookup |
-| `spidra_map` | Listing a site's page URLs, optionally ranked by a search | Waits, returns the URLs directly |
-| `spidra_crawl` | Discovering and processing pages from one starting URL | Returns a `jobId`, assistant polls |
-| `spidra_check_crawl_status` | Progress, then full results, for a crawl | Instant lookup |
-| `spidra_crawl_report` | Why a crawl skipped a page you expected | Instant lookup |
-| `spidra_crawl_pages` | Per-page results with raw HTML and markdown download links | Instant lookup |
-| `spidra_crawl_extract` | Asking a new question of an already-completed crawl | Returns a new `jobId` |
-| `spidra_retry_crawl_page` | Re-running the AI extraction for one page that failed | Instant |
-| `spidra_cancel_crawl` | Stopping a crawl you no longer need | Instant |
-| `spidra_scrape_logs` | Looking up past jobs and their outputs | Instant lookup |
-| `spidra_usage` | Checking credit and request usage | Instant lookup |
-
-### A note on output format
-
-When you need specific fields from a page, ask for JSON and describe the fields, or provide a JSON schema. The assistant gets back a small, focused payload instead of an entire page, which keeps the conversation fast and cheap. Ask for full markdown only when you genuinely need the whole page, such as summarizing a complete article.
-
-If you use a schema, define every field you want extracted. An untyped object with no properties gives the AI nothing to fill in, so those fields come back empty.
-
-## Available tools
-
-### 1. Search (`spidra_search`)
-
-Runs a real search query and returns structured results: titles, links, descriptions, thumbnails, the same data a search engine itself would show. This tool waits for the result and returns it directly, a plain search usually takes a few seconds.
-
-**Best for:**
-
-- Finding pages when you don't already know the URL
-- Checking what's out there before deciding what to scrape
-- News, image, or video results, not just web pages
-- Academic papers (`research`: arXiv, PubMed, bioRxiv, medRxiv) or GitHub issues/PRs (`developer`)
-
-**Not recommended for:**
-
-- A URL you already know, use `spidra_scrape` directly. It's cheaper and gives you AI extraction and schemas that search doesn't.
-
-**Prompt example:**
-
-> "Search for the best espresso machines of 2026 and summarize the top 3."
-
-**Usage example:**
-
-```json
-{
-  "name": "spidra_search",
-  "arguments": {
-    "query": "best espresso machine 2026",
-    "sources": ["web", "news"],
-    "limit": 5
-  }
-}
-```
-
-**Other options worth knowing:**
-
-- `sources`: which result types to fetch, any of `web`, `news`, `images`, `videos`, `research`, `developer` (default: just `web`). Each source runs independently, one coming back empty doesn't affect the others. `research`/`developer` don't honor `includeDomains`/`excludeDomains`/`filetype`.
-- `pageTokens`: need more than one page of a source's results? Pass that source's token from a prior response's `nextPageTokens` back here (e.g. `{"web": "<token>"}`) to fetch the next page. Rank numbering continues across pages (11, 12, ... after a first page of 10) rather than restarting.
-- `timeRange`: restrict results to a recency window (`hour`/`day`/`week`/`month`/`year`). Support varies by which engine actually answers; an unsupported window is just ignored, never an error.
-- `filetype`: `"pdf"` restricts web results to PDF files.
-- `includeDomains` / `excludeDomains`: restrict web results to, or keep them away from, specific domains. Pass one or the other, never both.
-- `scrapeOptions`: opt-in, also fetches each web result's actual page content (markdown only, no screenshot option here, that's what `spidra_scrape` is for) in this same call, no separate `spidra_scrape` step needed. This makes the call take as long as its slowest scraped page instead of the usual few seconds, and costs the normal per-page scrape credits on top of the search. A result that fails to scrape is simply left without markdown, not an error. Pages read by one of Spidra's site scrapers also get a `structuredData` object with the page's fields. PDF results (and other documents) are handled too: converted straight to markdown, no separate step needed, pairs naturally with `filetype: "pdf"`.
-
-**Returns:** results grouped by requested source, plus `stats`. If the wait window is exceeded (rare, only realistic with `scrapeOptions` on many results), the job keeps running and the error hands the assistant the job ID to check with `spidra_check_search_status`.
-
-### 2. Check search status (`spidra_check_search_status`)
-
-Looks up a search job by ID. Only needed when `spidra_search` reported that its wait window was exceeded.
-
-```json
-{
-  "name": "spidra_check_search_status",
-  "arguments": {
-    "jobId": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
-
-**Returns:** the job status (`waiting`, `active`, `completed`, or `failed`) and the full result when completed.
-
-### 3. Scrape (`spidra_scrape`)
-
-Scrapes one URL and extracts its content with AI. This tool waits for the result, typically 10 to 60 seconds, and returns the extracted content directly. No polling needed.
-
-For anything involving more than one URL, even just comparing two pages, use `spidra_batch_scrape` instead, so each URL gets its own clean, attributable result rather than one answer that risks blending or misattributing facts between sources.
-
-**Best for:**
-
-- Getting content or specific data from a page you already know
-
-**Not recommended for:**
-
-- Any task involving more than one URL, including comparing two pages (use `spidra_batch_scrape`)
-- Discovering pages on a site (use `spidra_crawl`)
-
-**Common mistakes:**
-
-- Omitting a prompt and a schema when you wanted structured data. With neither, you get the page back as raw markdown.
-
-**Prompt example:**
-
-> "Get the product name, price, and description from https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html."
-
-**Usage example (structured extraction with a schema):**
-
-```json
-{
-  "name": "spidra_scrape",
-  "arguments": {
-    "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
-    "prompt": "Extract the product information",
-    "output": "json",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "price": { "type": "number" },
-        "description": { "type": "string" }
-      },
-      "required": ["name", "price"]
-    }
-  }
-}
-```
-
-**Usage example (raw markdown, no AI extraction):**
-
-```json
-{
-  "name": "spidra_scrape",
-  "arguments": {
-    "url": "https://posthog.com/tutorials/web-redact-properties"
-  }
-}
-```
-
-**Usage example (log in first with browser actions):**
-
-```json
-{
-  "name": "spidra_scrape",
-  "arguments": {
-    "url": "https://quotes.toscrape.com/login",
-    "actions": [
-      { "type": "click", "selector": "#cookie-accept", "optional": true, "timeout": 2000 },
-      { "type": "type", "selector": "#username", "value": "demo" },
-      { "type": "type", "selector": "#password", "value": "demo" },
-      { "type": "click", "selector": "input[type='submit']" },
-      { "type": "waitFor", "selector": "a[href='/logout']" }
-    ],
-    "prompt": "List the first 3 quotes with their authors",
-    "output": "json"
-  }
-}
-```
-
-**Other options worth knowing:**
-
-- `actions`: browser steps to run in order before the page is captured (50 at most). Supports `click`, `type`, `check`, `uncheck`, `hover`, `select`, `press`, `wait`, `waitFor`, `scroll`, `scrollUntilEnd` (keep scrolling or clicking "load more" until the page stops growing), `evaluate` (run JavaScript and get its value back), `screenshot`, and `forEach` (go through every matching element, optionally across results pages; it must be the single, last action). `selector` takes a CSS selector, an XPath or a plain-English description. A step that can't be done fails the job and says which one and why, unless it has `optional: true`, in which case it is skipped. Every step except `forEach` also takes `timeout`.
-- `instruction`: one plain-English task instead of steps (e.g. "search for wireless headphones and open the first result"). Use `actions` or `instruction`, not both.
-- `cookies`: a raw Cookie header string for pages behind a login, for example `"session=abc123; token=xyz"`.
-- `useProxy` and `proxyCountry`: route through a residential proxy, optionally pinned to a country like `"us"` or `"de"`. Use for geo-restricted content or sites that block datacenter traffic.
-- `screenshot`: capture a viewport screenshot. The result includes a URL to the image.
-- `extractContentOnly`: strip navigation, ads, and boilerplate before the AI sees the page.
-- `scrapeMode`: `"fast"` uses plain HTTP with no browser. Cheaper and quicker, but it can't render JavaScript-heavy pages. `"default"` uses a real browser. Left unset, the tool tries fast first and moves to a browser with a proxy only if the page comes back nearly empty. A call with `actions` or `instruction` always runs in a browser, once: steps such as a form submission are never repeated automatically.
-- `output`: `"markdown"` (the default) or `"json"`. With `"json"` and no prompt or schema, a page handled by one of Spidra's site scrapers (Amazon, LinkedIn, Google Maps and others) returns its structured data as is, with no AI. Other pages use the default AI extraction.
-
-**Returns:** the extracted `content`, any `screenshots`, and `stats` with token counts and timing. Markdown is the readable page only. When a site scraper handled the page, the result also has `structuredData`, an object with the page's fields. `canonicalUrl` appears when the site scraper used a cleaned link, and `warnings` lists anything you asked for that was not done, such as a skipped optional step. With `actions`, `actionResults` reports each step in order (`ok`, `skipped` or `failed`, with the reason, an `evaluate` step's value or a screenshot's link), and `forEachItems` says how many items a `forEach` captured. If the wait window is ever exceeded, the job keeps running on the server and the error message hands the assistant the job ID to check with `spidra_check_scrape_status`. Nothing is lost.
-
-### 4. Check scrape status (`spidra_check_scrape_status`)
-
-Looks up a scrape job by ID. You only need this in one situation: a scrape took longer than the wait window (very slow or heavily protected sites). The timeout error includes the job ID, and the assistant uses this tool to fetch the result once the job finishes.
-
-```json
-{
-  "name": "spidra_check_scrape_status",
-  "arguments": {
-    "jobId": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
-
-**Returns:** the job status (`waiting`, `active`, `completed`, or `failed`) and the full result when completed.
-
-### 5. Batch scrape (`spidra_batch_scrape`)
-
-Submits 2 to 50 URLs that are all processed in parallel with the same prompt or schema. Each URL is handled **independently and gets its own result**, this is the tool for anything involving more than one URL, `spidra_scrape` only ever takes one.
-
-This tool returns immediately with a `batchId`. It does not wait, because a 50-URL batch can take several minutes. The assistant then polls `spidra_check_batch_status` every 10 to 15 seconds until the batch reaches a terminal state. The tool's own response tells the assistant to do exactly that, so you do not have to manage any of it.
-
-**Best for:**
-
-- Running the same extraction on each of many similar pages: product pages, listings, articles, profiles
-- Any case where you need a separate row of data per URL, even with only 2 URLs
-
-**Not recommended for:**
-
-- Pages you have not discovered yet (use `spidra_crawl`)
-
-**Common mistakes:**
-
-- Resubmitting the batch because results did not come back instantly. The batch is running; poll the status instead.
-
-**Prompt example:**
-
-> "Here are 15 product URLs. Extract the name, price, and star rating from each one."
-
-**Usage example:**
-
-```json
-{
-  "name": "spidra_batch_scrape",
-  "arguments": {
-    "urls": [
-      "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
-      "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
-      "https://books.toscrape.com/catalogue/soumission_998/index.html"
-    ],
-    "prompt": "Extract the product name, price, and star rating",
-    "output": "json",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "price": { "type": "string" },
-        "rating": { "type": "number" }
-      }
-    }
-  }
-}
-```
-
-**Returns:** `{ "batchId": "...", "total": 3 }` plus instructions for the assistant to poll. URLs here are plain strings, not objects.
-
-`output` defaults to `"markdown"`, and passing a schema forces `"json"`. `scrapeMode` is `"default"` or `"fast"`, same as `spidra_scrape`.
-
-### 6. Check batch status (`spidra_check_batch_status`)
-
-Fetches the current state of a batch: overall status, progress counters, and per-URL results for every item that has finished so far.
-
-```json
-{
-  "name": "spidra_check_batch_status",
-  "arguments": {
-    "batchId": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
-
-**Returns:** batch status (`pending`, `running`, `completed`, `failed`, or `cancelled`), `completedCount`, `failedCount`, and an `items` array where each entry carries its URL, status, extraction result, credits used, and timestamps. Items handled by one of Spidra's site scrapers also carry `structuredData`.
-
-One thing to know: a `completed` batch can still contain individual failed items. Check `failedCount`, then retry just those with `spidra_retry_batch` rather than resubmitting the whole batch.
-
-### 7. Retry batch (`spidra_retry_batch`)
-
-Re-queues only the failed items in a batch, successful items are left alone and not re-run. Every option from the original batch is kept. Cookies are never stored, so a batch that used cookies retries logged out.
-
-```json
-{
-  "name": "spidra_retry_batch",
-  "arguments": {
-    "batchId": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
-
-**Returns:** the number of items re-queued for another attempt.
-
-### 8. Cancel batch (`spidra_cancel_batch`)
-
-Cancels a pending or running batch. Items that already finished keep their results, and credits for unprocessed items are refunded automatically.
-
-```json
-{
-  "name": "spidra_cancel_batch",
-  "arguments": {
-    "batchId": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
-
-**Returns:** the number of cancelled items and the credits refunded.
-
-### 9. Parse (`spidra_parse`)
-
-Turns a document into Markdown, page by page: PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV or HTML. Give it a link to the document, a small file the user shared (as base64, up to about 10 MB), or a `fileId` from an earlier parse. Scanned pages are read with AI. Add `prompt` or `schema` to get fields back as JSON.
-
-It costs 1 credit per page parsed, plus AI tokens for extraction, and pages that fail are free. Use `pages` (like `"1-5"`) or `maxPages` to read only what you need from long documents.
-
-**Prompt example:**
-
-> "Read pages 1 to 3 of https://arxiv.org/pdf/1706.03762 and summarize the method."
-
-```json
-{
-  "name": "spidra_parse",
-  "arguments": { "url": "https://arxiv.org/pdf/1706.03762", "pages": "1-3" }
-}
-```
-
-**Options:** `mode` (`"auto"`, `"fast"` or `"ocr"`), `pages`, `maxPages`, `includePages` (per-page Markdown), `prompt` and `schema`.
-
-**Returns:** `markdown`, `json` when extraction was asked for, `pagesParsed`, `creditsUsed` and a `fileId` to parse the same file again. Very long documents return a `jobId` instead; check it with `spidra_check_parse_status`.
-
-### 10. Check parse status (`spidra_check_parse_status`)
-
-Checks a parse that was still running when `spidra_parse` returned. While running it shows which page it is on; when finished it returns the result.
-
-### 11. Map (`spidra_map`)
-
-Lists the page URLs of a website without scraping them. Spidra reads the site's sitemap and the links on its main pages, and returns the URLs directly, usually in a few seconds. Give it a `search` and the URLs come back ranked by how well they match. It costs 1 credit per call, and nothing when no URLs are found.
-
-**Best for:**
-
-- Finding the right page on a site before scraping it ("which page on this site covers refunds?")
-- Getting a full list of a site's URLs cheaply, then batch scraping the ones that matter
-
-**Prompt example:**
-
-> "Find the asyncio pages in the Python docs and summarize the one about task groups."
-
-**Usage example:**
-
-```json
-{
-  "name": "spidra_map",
-  "arguments": {
-    "url": "https://docs.python.org/3/",
-    "search": "asyncio",
-    "limit": 20
-  }
-}
-```
-
-**Options:** `search`, `limit` (default 500, maximum 5000), `sitemap` (`"include"` reads the sitemap and page links, `"only"` the sitemap, `"skip"` the links), `includeSubdomains`, `ignoreQueryParams` (default true), `respectRobots` and `cookies`.
-
-**Returns:** `links` (each with `url` and, when known, the link text as `title`), `total` (URLs that matched), `scanned` (URLs found before the search filter) and `sources` (how many came from the sitemap and from pages).
-
-### 12. Crawl (`spidra_crawl`)
-
-Crawls a website starting from one URL. Spidra discovers pages by following links according to a plain-English instruction you provide, and optionally extracts structured data from every page it visits. This is the tool for "get me something from every page in this section of a site" when you do not have the page URLs.
-
-Like batch, this returns immediately with a `jobId` and the assistant polls `spidra_check_crawl_status` until it finishes.
-
-Two instructions control a crawl, and keeping them straight matters:
-
-- `crawlInstruction` controls **which links get followed**. For example, "Follow blog post links only, skip tag and category pages."
-- `transformInstruction` controls **what gets extracted from each page**. For example, "Extract the title, author, and publish date." If you leave it out (and pass no schema), each page comes back as raw markdown and no AI tokens are charged at all.
-
-**Best for:**
-
-- Docs sites, blogs, product catalogs, or any section of a site where you want data from many pages you have not listed out
-- Building a structured dataset from a whole site section in one request
-
-**Not recommended for:**
-
-- URLs you already know (scrape or batch scrape are faster and cheaper)
-- A single page (use `spidra_scrape`)
-
-**Common mistakes:**
-
-- Setting `maxPages` higher than needed. Every crawled page costs credits. Start small; you can always crawl again.
-- Putting extraction wording into `crawlInstruction`. Link-following and extraction are separate instructions.
-
-**Prompt example:**
-
-> "Crawl spidra.io/blog, follow only the article links, and get me each post's title, author, and date. Cap it at 10 pages."
-
-**Usage example:**
-
-```json
-{
-  "name": "spidra_crawl",
-  "arguments": {
-    "baseUrl": "https://spidra.io/blog",
-    "crawlInstruction": "Follow blog post links only, skip tag and category pages",
-    "transformInstruction": "Extract the title, author, and publish date",
-    "maxPages": 10
-  }
-}
-```
-
-Spidra reads category, listing and section pages to find the pages you asked for. Those pages are not returned and are not charged.
-
-**Scoping options:** `maxPages` (default 5; up to 100 on Free, 1,000 on Starter, 5,000 on Builder and 10,000 on Pro), `maxDepth` (0 means the base URL only, omit for no limit), `includePaths` and `excludePaths` (path patterns like `"/blog/*"`), `allowSubdomains`, `crawlEntireDomain`, and `ignoreQueryParams` (treat URLs that differ only by query string as the same page). `useSitemap` (default true) reads the site's sitemap to find pages, and `respectRobots` (default false) follows the site's robots.txt rules and Crawl-delay. `cookies`, `useProxy`, and `proxyCountry` work the same as in scrape.
-
-**Returns:** `{ "jobId": "..." }` plus polling instructions for the assistant.
-
-### 13. Check crawl status (`spidra_check_crawl_status`)
-
-Fetches a crawl's progress while it runs, and its full results once it completes.
-
-```json
-{
-  "name": "spidra_check_crawl_status",
-  "arguments": {
-    "jobId": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
-
-**Returns:** while running, the status and a progress message describing what's happening right now (e.g. "Scraping (3/10) https://..."), not a page count, poll again for an updated one. When completed, an array with every crawled page's URL, title, and extracted data. Terminal statuses are `completed`, `failed`, and `cancelled`.
-
-### 14. Crawl report (`spidra_crawl_report`)
-
-Explains a finished crawl: how Spidra understood the instruction, how many pages it read only to find the wanted ones (free), and every link it did not follow, grouped by reason. Pass `reason` to list the URLs for one reason, each with the page it was found on. The assistant uses this when a page you expected is missing, then adjusts the instruction or paths and crawls again.
-
-```json
-{
-  "name": "spidra_crawl_report",
-  "arguments": {
-    "jobId": "550e8400-e29b-41d4-a716-446655440000",
-    "reason": "not_relevant"
-  }
-}
-```
-
-Reasons: `not_relevant`, `outside_domain`, `include_pattern`, `exclude_pattern`, `file_type`, `other_version_or_language`, `duplicate_page`, `redirected_off_site`, `robots_txt` and `action_link` (links like add to cart or log out).
-
-**Returns:** `report` with `understoodAs`, `navigationPages`, `skippedTotal`, `skipped` (reason, count, description) and `skippedUrls` (url, reason, foundOn). `report` is null while the crawl is still running.
-
-### 15. Crawl pages (`spidra_crawl_pages`)
-
-Fetches per-page results for a crawl, including signed download URLs for each page's raw HTML and markdown. Useful when you want the original page content rather than only the extracted data. The download links expire after 1 hour, so use them promptly.
-
-This also works on cancelled crawls, returning whatever pages finished before the cancellation.
-
-```json
-{
-  "name": "spidra_crawl_pages",
-  "arguments": {
-    "jobId": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
-
-**Returns:** an array of pages, each with its URL, status, extracted data, and signed `html` and `markdown` download URLs.
-
-### 16. Re-extract from a crawl (`spidra_crawl_extract`)
-
-Runs a brand new extraction instruction over a crawl that already completed, without fetching any pages again. Spidra kept the page content, so only AI token credits are charged, no per-page scraping cost. This is the cheap way to ask a second question of the same site.
-
-For example: you crawled a competitor's blog extracting titles and dates. Now you want the key topics of each post too. Re-extract instead of re-crawling.
-
-```json
-{
-  "name": "spidra_crawl_extract",
-  "arguments": {
-    "jobId": "550e8400-e29b-41d4-a716-446655440000",
-    "transformInstruction": "List the main topics each post covers and its target audience"
-  }
-}
-```
-
-**Returns:** a new `jobId`. The assistant polls `spidra_check_crawl_status` with it, same as a normal crawl. The source crawl must have status `completed`.
-
-### 17. Retry one crawled page (`spidra_retry_crawl_page`)
-
-Re-runs the AI transformation for a single already-crawled page, using the crawl's own `transformInstruction`. Use this when just one or two pages failed extraction rather than re-running `spidra_crawl_extract` over the whole crawl. Get the page's `id` from `spidra_crawl_pages`.
-
-```json
-{
-  "name": "spidra_retry_crawl_page",
-  "arguments": {
-    "jobId": "550e8400-e29b-41d4-a716-446655440000",
-    "pageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-  }
-}
-```
-
-**Returns:** the re-extracted `data` for that page, plus tokens and credits used. Only charges for that page's transformation.
-
-### 18. Cancel crawl (`spidra_cancel_crawl`)
-
-Cancels a queued or running crawl. Pages that were already processed are kept and remain retrievable through `spidra_crawl_pages`, and credits for unprocessed pages are refunded.
-
-```json
-{
-  "name": "spidra_cancel_crawl",
-  "arguments": {
-    "jobId": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
-```
-
-**Returns:** confirmation with the cancelled job's ID.
-
-### 19. Scrape logs (`spidra_scrape_logs`)
-
-Browses past scrape jobs on the account: what ran, when, whether it succeeded, and how many credits it used. Pass a `uuid` to fetch one log entry with its complete AI output. Useful for finding the result of an earlier job, debugging a failure, or reviewing what a key has been used for.
-
-```json
-{
-  "name": "spidra_scrape_logs",
-  "arguments": {
-    "status": "failed",
-    "searchTerm": "amazon.com",
-    "limit": 10
-  }
-}
-```
-
-**Returns:** a list of log entries with URLs, status, credits, tokens, and timing. With a `uuid`, the single entry including its full extraction result.
-
-### 20. Usage (`spidra_usage`)
-
-Reports the account's request, credit, and token usage broken down by day or week. Ask the assistant "how many credits have I used this week?" and this is the tool it reaches for. Also handy before kicking off a large batch or crawl.
-
-```json
-{
-  "name": "spidra_usage",
-  "arguments": {
-    "range": "7d"
-  }
-}
-```
-
-**Returns:** rows of usage data. Accepted ranges are `"7d"`, `"30d"`, and `"weekly"`.
+The same guidance is built into the tool descriptions, so the assistant follows it on its own.
+
+- **You don't know the URL:** `spidra_search`. You know the site but not the page: `spidra_map`, then read the pages you need.
+- **One URL:** `spidra_scrape`. **Two or more, even to compare two:** `spidra_batch_scrape`, so each gets its own result.
+- **Many pages of one kind on a site, URLs unknown:** `spidra_crawl`.
+- **A document, not a web page:** `spidra_parse`.
+- **A common job on a well-known site:** `spidra_find_templates`, then `spidra_run_template`. Usually cheaper and more complete than building it from scrapes.
+- **Something to keep an eye on:** `spidra_create_monitor`.
+
+Tools that don't wait to the end return an id. The assistant checks it with `spidra_get_job` instead of starting the job again.
+
+### All tools
+
+| Group | Tool | What it does | Waits? |
+|---|---|---|---|
+| Find | `spidra_search` | Web, news, images, videos, research papers, GitHub | Yes |
+| | `spidra_map` | A site's URLs, optionally ranked by a search | Yes |
+| Read pages | `spidra_scrape` | One URL as Markdown or JSON, with optional browser actions | Yes |
+| | `spidra_batch_scrape` | 2 to 50 URLs, one result each | With `wait` and up to 10 URLs |
+| | `spidra_crawl` | Every page of one kind on a site | No, returns a `jobId` |
+| | `spidra_crawl_pages` | A crawl's pages, paged, with file links | Yes |
+| | `spidra_crawl_report` | Why a crawl skipped pages | Yes |
+| | `spidra_crawl_extract` | New extraction over a finished crawl, without re-crawling | No, returns a `jobId` |
+| | `spidra_retry_crawl_page` | Redo one crawled page's extraction | Yes |
+| Documents | `spidra_parse` | One or many documents to Markdown or JSON, or the cost with `dryRun` | Up to about 50 seconds |
+| Ready-made | `spidra_find_templates` | Search the templates | Yes |
+| | `spidra_get_template` | A template's inputs, columns and limits | Yes |
+| | `spidra_run_template` | Run one, or price it with `estimate` | Up to about 45 seconds |
+| | `spidra_list_presets` | Saved presets, or one in full | Yes |
+| | `spidra_save_preset` | Save or change a preset | Yes |
+| | `spidra_run_preset` | Run a preset, with optional overrides | Depends on the job |
+| | `spidra_delete_preset` | Delete a preset | Yes |
+| Monitors | `spidra_create_monitor` | Create, price with `estimate`, or send a test alert | Yes |
+| | `spidra_list_monitors` | All monitors, or one in full | Yes |
+| | `spidra_update_monitor` | Change, pause or resume | Yes |
+| | `spidra_delete_monitor` | Delete a monitor and its history | Yes |
+| | `spidra_check_monitor` | Run a check now | No, runs in the background |
+| | `spidra_monitor_changes` | What each check found | Yes |
+| Jobs | `spidra_get_job` | Status and result of any scrape, search, batch, crawl, parse or template run | Yes |
+| | `spidra_cancel_job` | Cancel a batch, crawl or search | Yes |
+| | `spidra_retry_batch` | Re-run a batch's failed URLs | Yes |
+| Account | `spidra_account` | Credits left, plan, bandwidth, monitor limits, usage | Yes |
+| | `spidra_logs` | Past runs of any tool, or one in full | Yes |
+
+Every API capability is covered except three that don't suit an assistant: downloading a crawl as a ZIP file, uploading files over 10 MB (the assistant can pass a link instead), and deleting a stored document early (they're deleted after 24 hours anyway).
+
+### Output format
+
+When you need specific fields, ask for JSON and describe them, or give a JSON schema. The assistant gets a small, focused answer instead of a whole page, which is faster and cheaper. Define every field in a schema: an object with no properties comes back empty.
+
+Template rows come back with just the template's table columns by default (name, phone, website and so on). Ask for full detail when you need every field; a Google Maps place has about 50.
 
 ## Credits and how this server protects them
 
-Every scraped URL costs credits: a base of 1 credit per URL, plus AI tokens when extraction runs, plus 5 credits per CAPTCHA solved. A plain search costs 1 credit per 10 results actually returned, per source, rounded up (10 web results is 1 credit, 15 is 2, a source that comes back empty is free); requesting more sources or a higher `limit` only costs more if it actually delivers more results. Turning on `scrapeOptions` bills each fetched result at the normal scrape rate on top of that. Agent loops can burn through credits quickly if the tools let them, so this server is deliberately built to prevent that:
+Pages cost 1 credit each, plus AI credits when extraction runs, plus 5 credits per CAPTCHA solved. Search costs 1 credit per 10 results per source. Templates, presets and monitor checks cost what the job behind them costs. Failed pages and failed jobs cost nothing. Agent loops can burn credits quickly, so this server is built to prevent that:
 
-- The tool descriptions steer the assistant toward the cheapest tool that answers the question, and tell it to keep `maxPages` small.
-- Long-running jobs return a job ID with explicit polling instructions, so the assistant never resubmits a job that is still running.
-- Timeout errors say, in effect, "this job is still running, poll it, do not retry." Duplicate submissions are also deduplicated server-side within a short window.
-- Rate limit errors tell the assistant exactly how many seconds to wait. Validation errors list exactly what to fix and say not to retry unchanged. Permanent errors say not to retry at all. This prevents the expensive retry loops agents are prone to.
-- Cancelling unfinished work refunds the unprocessed portion, and the cancel tools say so in their descriptions.
+- Tool descriptions steer the assistant to the narrowest tool and small limits, and `spidra_account` lets it check the balance before a big job.
+- Templates, monitors and parse can be priced first, for free (`estimate` and `dryRun`).
+- `spidra_scrape` runs once. If a page comes back nearly empty, the result says so and suggests Stealth Mode, rather than quietly paying for a second run.
+- Jobs that don't finish in the call return an id with instructions to check it, never to start again. Duplicate submissions within a few seconds are also merged on the server.
+- Errors say what to do: wait this long (rate limits), fix these fields (validation), or don't retry (out of credits, overdue payment, a plan limit).
+- Cancelling returns the credits held for work that hadn't started.
 
 ## Output size
 
-Large pages and big crawls can produce more text than fits in a model's context window. The server truncates individual strings above 5,000 characters and caps any single tool response at 80,000 characters, and every truncation message tells the assistant what to do about it (ask a narrower question, or reach for a more targeted tool). If the assistant needs the complete raw content of crawled pages, `spidra_crawl_pages` provides download links to the full files.
+Tool results are capped so they fit in the assistant's context: any one string at 20,000 characters and a whole result at 80,000 (about 20,000 tokens). Every cut says how to get the rest. Big lists page with `offset` and `limit`, template rows come back trimmed to their columns, and crawl results leave out per-page file links, which `spidra_crawl_pages` provides. Results also come back as `structuredContent` for clients that read fields directly.
 
 ## Error handling
 
@@ -902,6 +416,14 @@ Errors come back as readable messages, not stack traces, and each one carries gu
 
 Transient network failures and 5xx responses are retried automatically with backoff before you ever see an error, courtesy of the underlying [Spidra Node SDK](https://www.npmjs.com/package/spidra).
 
+## What changed in 0.7.0
+
+- **New:** templates, presets and monitors (`spidra_find_templates`, `spidra_get_template`, `spidra_run_template`, the preset tools and the monitor tools), `spidra_account` for the credit balance, and `spidra_logs` for every tool's history.
+- **One tool for job status:** `spidra_get_job` replaces `spidra_check_scrape_status`, `spidra_check_search_status`, `spidra_check_batch_status`, `spidra_check_parse_status` and `spidra_check_crawl_status`. `spidra_cancel_job` replaces `spidra_cancel_batch` and `spidra_cancel_crawl`. `spidra_account` replaces `spidra_usage`, and `spidra_logs` replaces `spidra_scrape_logs`. If you allow-list tools by name in your client, update the list.
+- **`spidra_scrape` no longer runs a page twice.** It used to retry a thin page in a browser with a proxy, which cost twice. Now it runs once and tells the assistant when Stealth Mode might help.
+- **`spidra_parse`** takes several documents at once and prices them with `dryRun`.
+- Results include `structuredContent`, error messages are clearer (out of credits, plan limits, validation errors by field), and a failed-scrape filter in the logs works again.
+
 ## Troubleshooting
 
 - **The assistant does not see any Spidra tools.** Restart your client after adding the config. Most clients only read MCP configuration at startup. In Claude Code, run `/mcp` to check the connection status.
@@ -909,7 +431,7 @@ Transient network failures and 5xx responses are retried automatically with back
 - **Hosted endpoint returns a 401.** The header is missing, misnamed, or the key has been revoked. It must be exactly `Authorization: Bearer spd_...`, and the key must still exist under **API Keys** in your dashboard.
 - **OAuth login doesn't open a browser, or the client falls back to asking for a key.** Not every MCP client supports OAuth yet, use the API key method for that client instead. If a browser window did open but the flow failed partway through, retry; if it keeps failing, confirm you're logged into [app.spidra.io](https://app.spidra.io) in that browser.
 - **OAuth login fails with "Invalid or expired transaction" or similar, then the assistant reports no credentials found.** The login attempt was interrupted before it finished, usually from taking too long on the approve screen (the flow expires after 10 minutes) or retrying a stale login link. Remove and re-add the connector to start clean, and approve access promptly. Falls back to the API key method for that client if it keeps happening.
-- **A scrape "timed out."** The job is still running on the server and nothing is lost. The error includes the job ID, and the assistant will fetch the result with `spidra_check_scrape_status`. Bot-protected sites can take a couple of minutes.
+- **A scrape "timed out."** The job is still running on the server and nothing is lost. The error includes the job ID, and the assistant fetches the result with `spidra_get_job`. Bot-protected sites can take a couple of minutes.
 - **Results come back empty when using a schema.** Check the schema: every field you want must be defined with a type. An object with no properties gives the AI nothing to fill in.
 - **`npx` cannot find the package.** Make sure you are on Node 20 or newer and that your network allows access to the npm registry. This only applies to local/self-hosted setups, the hosted endpoint doesn't use `npx`.
 
