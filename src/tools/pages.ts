@@ -11,7 +11,7 @@ export function registerPageTools(server: Server): void {
 Read one known URL and get its content as Markdown, or the data you describe as JSON. Waits and returns the result, usually in a few seconds. A page that takes over 45 seconds returns its jobId instead: check it with spidra_get_job (type "scrape") rather than scraping again.
 
 **Use it for** one URL. Links to PDF, Word, Excel and PowerPoint files work too.
-**Don't use it for** more than one URL, even to compare two: spidra_batch_scrape gives each URL its own result. To find pages on a site, use spidra_map or spidra_crawl.
+**Don't use it for** more than one URL, even to compare two: spidra_batch_scrape gives each URL its own result. To find pages on a site, or just list its links, use spidra_map (1 credit, no AI) or spidra_crawl.
 
 - No "prompt" or "schema": the page as Markdown.
 - "prompt": what you want, in plain words; the AI picks the shape. Add "schema" for exact fields and types (null where the page has nothing).

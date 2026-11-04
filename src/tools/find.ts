@@ -64,7 +64,7 @@ Search the web and get back ranked results: titles, links and descriptions, as a
     description: `
 List a website's page URLs without scraping them, from its sitemaps and the links on its pages. Waits and returns the URLs, usually in a few seconds.
 
-**Use it when** you need the right pages on a site before reading them ("which page on stripe.com covers refunds?"), or a full list of a site's URLs.
+**Use it when** you need the right pages on a site before reading them ("which page on stripe.com covers refunds?"), a full list of a site's URLs, or the URLs of one kind of page (every category, product or blog post): put a word from those URLs in "search". That's 1 credit, much cheaper than scraping a page and extracting its links with AI.
 **Then:** pick the URLs you need and read exactly those with spidra_scrape or spidra_batch_scrape. That's usually cheaper than spidra_crawl when you only need a few pages.
 
 - "search" keeps only matching URLs, best matches first. Keep "limit" small when you only need a few.
