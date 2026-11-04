@@ -1,0 +1,47 @@
+{
+ "tool": "spidra_update_monitor",
+ "args": {
+  "monitorId": "29ffcc42-186a-4388-b5f7-fadff29fbe7e",
+  "name": "Eval fixture 2"
+ },
+ "structuredContent": {
+  "monitor": {
+   "id": "29ffcc42-186a-4388-b5f7-fadff29fbe7e",
+   "name": "Eval fixture 2",
+   "status": "active",
+   "sources": [
+    {
+     "id": "9f7bebcefd3a",
+     "kind": "urls",
+     "urls": [
+      "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
+     ],
+     "label": "books.toscrape.com"
+    }
+   ],
+   "schedule": {
+    "every": "1d",
+    "at": "09:00",
+    "timezone": "UTC"
+   },
+   "cron": "0 9 * * *",
+   "alertOn": "page",
+   "watchFields": [],
+   "rule": null,
+   "goal": null,
+   "notify": {
+    "email": {
+     "enabled": true
+    }
+   },
+   "nextRunAt": "2026-11-04T09:00:00.000Z",
+   "lastCheckAt": null,
+   "lastChangeAt": null,
+   "lastStatus": null,
+   "lastSummary": null,
+   "createdAt": "2026-11-04T05:37:50.000Z",
+   "updatedAt": "2026-11-04T05:37:50.000Z"
+  },
+  "recipients": []
+ }
+}

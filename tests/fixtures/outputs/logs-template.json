@@ -1,0 +1,40 @@
+{
+ "tool": "spidra_logs",
+ "args": {
+  "tool": "template",
+  "limit": 2
+ },
+ "structuredContent": {
+  "runs": [
+   {
+    "runId": "8a55b0a9-ff88-4280-9a58-e91b22584aeb",
+    "template": "google-maps-leads",
+    "title": "Google Maps leads",
+    "site": {
+     "key": "google-maps",
+     "name": "Google Maps",
+     "domain": "google.com"
+    },
+    "presetId": null,
+    "tool": "batch",
+    "status": "completed",
+    "inputs": {
+     "query": "dentist",
+     "areas": [
+      "Lekki, Lagos"
+     ],
+     "pages": 1,
+     "findContacts": false,
+     "language": "en"
+    },
+    "creditsUsed": 1,
+    "rowCount": null,
+    "urlCount": 1,
+    "createdAt": "2026-11-04T05:37:45.000Z",
+    "finishedAt": "2026-11-04T05:37:45.000Z"
+   }
+  ],
+  "total": 1,
+  "page": 1
+ }
+}

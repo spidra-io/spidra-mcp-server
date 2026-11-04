@@ -1,0 +1,18 @@
+{
+ "tool": "spidra_run_template",
+ "args": {
+  "slug": "google-maps-leads",
+  "inputs": {
+   "query": "dentist",
+   "areas": [
+    "Lekki, Lagos"
+   ]
+  },
+  "estimate": true
+ },
+ "structuredContent": {
+  "credits": 1,
+  "note": null,
+  "pages": 1
+ }
+}

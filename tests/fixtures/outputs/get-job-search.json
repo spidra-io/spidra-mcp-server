@@ -1,0 +1,51 @@
+{
+ "tool": "spidra_get_job",
+ "args": {
+  "type": "search",
+  "id": "08239121-51ee-470b-97e2-473095b891bd",
+  "waitSeconds": 40
+ },
+ "structuredContent": {
+  "status": "completed",
+  "progress": {
+   "message": "Search completed successfully",
+   "progress": 1
+  },
+  "result": {
+   "success": true,
+   "data": {
+    "web": [
+     {
+      "title": "AI Web Crawler API for Agents and RAG | Spider",
+      "url": "https://spider.cloud/",
+      "description": "One API to scrape, crawl, and search, backed by our own browser engine and network. Low cost, low latency, built to scale. Get started free. Copy setup prompt ...",
+      "position": 1
+     },
+     {
+      "title": "Firecrawl | Web Data API for AI Agents",
+      "url": "https://www.firecrawl.dev/",
+      "description": "Firecrawl is not just a scraper or a search API — it's the infrastructure layer that helps AI systems find, read, and act on information across the live web.",
+      "position": 2
+     }
+    ],
+    "extras": {
+     "relatedSearches": [
+      "ai web scraping tool free",
+      "web scraper api free",
+      "web scraper online tool free",
+      "ai web scraper",
+      "spider crawler"
+     ]
+    },
+    "nextPageTokens": {
+     "web": "v1.tFa7YmnXw-NNvsnPhzIkFI4f9uNz75oXwMF7rfy5CoqkRnPYTZ_nMSG_ty2t-rWdbzsh35sxaUikSvyccWhYS6gG0mPfN9jo9teT1LEh8rrMdh3xPBfVOmVFceyk3EMIg9Oj13qm7c2jhK6TyzvYzVz2jJFo5gGwFSc5q0sv8asqs5E"
+    }
+   },
+   "stats": {
+    "durationMs": 1550
+   },
+   "logUuid": "0fc88659-6167-42ff-bb8c-8f8673ab8d76"
+  },
+  "error": null
+ }
+}

@@ -1,0 +1,43 @@
+{
+ "tool": "spidra_get_job",
+ "args": {
+  "type": "crawl",
+  "id": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+  "waitSeconds": 50
+ },
+ "structuredContent": {
+  "status": "completed",
+  "progress": {
+   "status": "completed",
+   "message": "Crawl completed",
+   "progress": 1
+  },
+  "result": [
+   {
+    "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+    "status": "success",
+    "title": "A Light in the Attic | Books to Scrape - Sandbox",
+    "data": {
+     "title": "A Light in the Attic",
+     "price": "£51.77"
+    },
+    "depth": 1,
+    "parentUrl": "https://books.toscrape.com/"
+   },
+   {
+    "url": "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
+    "status": "success",
+    "title": "Tipping the Velvet | Books to Scrape - Sandbox",
+    "data": {
+     "title": "Tipping the Velvet",
+     "price": "£53.74"
+    },
+    "depth": 1,
+    "parentUrl": "https://books.toscrape.com/"
+   }
+  ],
+  "error": null,
+  "totalPages": 2,
+  "note": "Links to each page's HTML and Markdown files are left out here; spidra_crawl_pages returns them."
+ }
+}

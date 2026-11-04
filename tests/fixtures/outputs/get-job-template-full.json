@@ -1,0 +1,316 @@
+{
+ "tool": "spidra_get_job",
+ "args": {
+  "type": "template_run",
+  "id": "8a55b0a9-ff88-4280-9a58-e91b22584aeb",
+  "detail": "full",
+  "limit": 1
+ },
+ "structuredContent": {
+  "runId": "8a55b0a9-ff88-4280-9a58-e91b22584aeb",
+  "template": "google-maps-leads",
+  "templateVersion": 5,
+  "presetId": null,
+  "tool": "batch",
+  "status": "completed",
+  "inputs": {
+   "query": "dentist",
+   "areas": [
+    "Lekki, Lagos"
+   ],
+   "pages": 1,
+   "findContacts": false,
+   "language": "en"
+  },
+  "createdAt": "2026-11-04T05:37:45.000Z",
+  "finishedAt": "2026-11-04T05:37:45.000Z",
+  "creditsUsed": 1,
+  "urlCount": 1,
+  "rowCount": 20,
+  "job": {
+   "tool": "batch",
+   "id": "1f6365ad-567e-4884-85ea-99e487666e42"
+  },
+  "progress": {
+   "completed": 1,
+   "failed": 0,
+   "total": 1
+  },
+  "failures": [],
+  "rows": [
+   {
+    "position": 1,
+    "title": "Hilton Dental Clinic Lekki",
+    "dataId": "0x103bf50b95b8d7f3:0x815434806843a2c5",
+    "placeId": "ChIJ89e4lQv1OxARxaJDaIA0VIE",
+    "cid": "9319131255046120133",
+    "kgmid": "/g/11ppc3pmct",
+    "googleMapsUrl": "https://www.google.com/maps?cid=9319131255046120133",
+    "category": "Dentist",
+    "categories": [
+     "Dentist",
+     "Child health care center",
+     "Cosmetic surgeon",
+     "Dental hygienist",
+     "Dental implants periodontist"
+    ],
+    "address": "13 Whitesands St, Ikate bustop, Lagos 105102, Lagos, Nigeria",
+    "addressLines": [
+     "13 Whitesands St",
+     "Ikate bustop",
+     "Lagos 105102",
+     "Lagos, Nigeria"
+    ],
+    "addressComponents": {
+     "neighborhood": "Ikate bustop",
+     "street": "13 Whitesands St",
+     "city": "Lagos",
+     "postalCode": "105102",
+     "state": "Lagos",
+     "countryCode": "NG"
+    },
+    "plusCode": "6FR5CFHH+PG",
+    "location": {
+     "lat": 6.4293659,
+     "lng": 3.4787779
+    },
+    "timeZone": "Africa/Lagos",
+    "phone": "+234 701 007 5124",
+    "phoneE164": "+2347010075124",
+    "website": "http://www.hiltondental.com.ng/",
+    "domain": "hiltondental.com.ng",
+    "rating": 4.9,
+    "reviewsCount": 848,
+    "reviewsLink": "https://search.google.com/local/reviews?placeid=ChIJ89e4lQv1OxARxaJDaIA0VIE&q=dentist+in+Lekki,+Lagos&authuser=0&hl=en&gl=US",
+    "businessStatus": "OPERATIONAL",
+    "openNow": false,
+    "openState": "Closed · Opens 8 AM",
+    "hours": {
+     "timeZone": "Africa/Lagos",
+     "days": [
+      {
+       "day": "Wednesday",
+       "date": "2026-11-04",
+       "display": "8 AM–6 PM",
+       "closed": false,
+       "open24Hours": false,
+       "periods": [
+        {
+         "open": "08:00",
+         "close": "18:00"
+        }
+       ]
+      },
+      {
+       "day": "Thursday",
+       "date": "2026-11-05",
+       "display": "8 AM–6 PM",
+       "closed": false,
+       "open24Hours": false,
+       "periods": [
+        {
+         "open": "08:00",
+         "close": "18:00"
+        }
+       ]
+      },
+      {
+       "day": "Friday",
+       "date": "2026-11-06",
+       "display": "8 AM–6 PM",
+       "closed": false,
+       "open24Hours": false,
+       "periods": [
+        {
+         "open": "08:00",
+         "close": "18:00"
+        }
+       ]
+      },
+      {
+       "day": "Saturday",
+       "date": "2026-11-07",
+       "display": "9 AM–3 PM",
+       "closed": false,
+       "open24Hours": false,
+       "periods": [
+        {
+         "open": "09:00",
+         "close": "15:00"
+        }
+       ]
+      },
+      {
+       "day": "Sunday",
+       "date": "2026-11-08",
+       "display": "Closed",
+       "closed": true,
+       "open24Hours": false,
+       "periods": []
+      }
+     ]
+    },
+    "hoursByDay": {
+     "monday": "8 AM–6 PM",
+     "tuesday": "8 AM–6 PM",
+     "wednesday": "8 AM–6 PM",
+     "thursday": "8 AM–6 PM",
+     "friday": "8 AM–6 PM",
+     "saturday": "9 AM–3 PM",
+     "sunday": "Closed"
+    },
+    "description": null,
+    "highlight": null,
+    "thumbnail": "https://lh3.googleusercontent.com/grass-cs/AABkmLeUC3SaoA-QZqTc_n8Emtzg0UJJH45CtDAULppis3B7sP6C_s5bXusqM92QAcX4v5bh_C9JbG_aPb1NYRG5HlPSP0_ZEEYeBBo3PFUb9lrX9tr6R3_HEynle9kPudkCWoNJK0tG=w129-h86-k-no",
+    "attributes": [
+     {
+      "group": "Accessibility",
+      "key": "has_wheelchair_accessible_entrance",
+      "label": "Wheelchair accessible entrance",
+      "value": true
+     },
+     {
+      "group": "Accessibility",
+      "key": "has_wheelchair_accessible_restroom",
+      "label": "Wheelchair accessible restroom",
+      "value": true
+     }
+    ],
+    "links": {
+     "orderOnline": null,
+     "menu": null,
+     "directions": "https://www.google.com/maps/dir/?api=1&destination=6.4293659,3.4787779&destination_place_id=ChIJ89e4lQv1OxARxaJDaIA0VIE",
+     "writeReview": "https://search.google.com/local/writereview?placeid=ChIJ89e4lQv1OxARxaJDaIA0VIE"
+    },
+    "hotel": null,
+    "gasPrice": null,
+    "locality": "Lagos, Nigeria",
+    "reviewSnippets": [],
+    "claimed": null,
+    "owner": null,
+    "ownerDescription": null,
+    "photosCount": null,
+    "photos": null,
+    "ratingDistribution": null,
+    "reviewTopics": null,
+    "ownerPhoto": null,
+    "areas": null,
+    "entrances": [],
+    "popularTimes": null,
+    "businessProfileId": "11538219496934554487",
+    "primaryCategoryId": "dental_clinic",
+    "alternateName": null,
+    "badges": [],
+    "actions": {
+     "reserve": null,
+     "book": {
+      "type": "book",
+      "label": null,
+      "googleUrl": null,
+      "url": null,
+      "providers": [
+       {
+        "name": "hiltondental.com.ng",
+        "domain": "hiltondental.com.ng",
+        "url": "https://www.hiltondental.com.ng/appointments/",
+        "providerId": null,
+        "logo": null
+       }
+      ]
+     },
+     "order": null
+    },
+    "reservationLinks": [],
+    "secondaryHours": [],
+    "hoursUpdatedByBusiness": null,
+    "locatedIn": null,
+    "notices": [],
+    "ownerPosts": null,
+    "ownerPostsSource": null,
+    "atThisPlace": null,
+    "partnerReviews": null,
+    "photoDetails": null,
+    "streetView": null,
+    "photoCategories": null,
+    "peopleAlsoSearch": null,
+    "fieldStatus": {
+     "title": "present",
+     "dataId": "present",
+     "placeId": "present",
+     "cid": "present",
+     "kgmid": "present",
+     "googleMapsUrl": "present",
+     "category": "present",
+     "categories": "present",
+     "address": "present",
+     "addressLines": "present",
+     "addressComponents": "present",
+     "plusCode": "present",
+     "location": "present",
+     "timeZone": "present",
+     "phone": "present",
+     "phoneE164": "present",
+     "website": "present",
+     "domain": "present",
+     "rating": "present",
+     "reviewsCount": "present",
+     "reviewsLink": "present",
+     "businessStatus": "present",
+     "openNow": "present",
+     "openState": "present",
+     "hours": "present",
+     "hoursByDay": "present",
+     "description": "absent",
+     "highlight": "absent",
+     "thumbnail": "present",
+     "attributes": "present",
+     "links": "present",
+     "hotel": "absent",
+     "gasPrice": "absent",
+     "locality": "present",
+     "reviewSnippets": "absent",
+     "claimed": "absent",
+     "owner": "notRequested",
+     "ownerDescription": "notRequested",
+     "photosCount": "notRequested",
+     "photos": "notRequested",
+     "ratingDistribution": "notRequested",
+     "reviewTopics": "notRequested",
+     "ownerPhoto": "notRequested",
+     "areas": "notRequested",
+     "entrances": "absent",
+     "popularTimes": "notRequested",
+     "businessProfileId": "present",
+     "primaryCategoryId": "present",
+     "alternateName": "absent",
+     "badges": "absent",
+     "actions": "present",
+     "reservationLinks": "absent",
+     "secondaryHours": "absent",
+     "hoursUpdatedByBusiness": "absent",
+     "locatedIn": "absent",
+     "notices": "absent",
+     "ownerPosts": "notRequested",
+     "ownerPostsSource": "notRequested",
+     "atThisPlace": "notRequested",
+     "partnerReviews": "notRequested",
+     "photoDetails": "notRequested",
+     "streetView": "notRequested",
+     "photoCategories": "notRequested",
+     "peopleAlsoSearch": "notRequested",
+     "priceLevel": "unavailableAnonymous",
+     "photoGallery": "unavailableAnonymous",
+     "menuLink": "unavailableAnonymous"
+    },
+    "scrapedAt": "2026-11-04T05:37:43.708Z",
+    "_sourceUrl": "https://www.google.com/maps/search/dentist+in+Lekki%2C+Lagos?hl=en&start=0"
+   }
+  ],
+  "rowsShown": {
+   "offset": 0,
+   "count": 1,
+   "total": 20
+  },
+  "next": "More rows: call spidra_get_job {\"type\": \"template_run\", \"id\": \"8a55b0a9-ff88-4280-9a58-e91b22584aeb\", \"offset\": 1}."
+ }
+}

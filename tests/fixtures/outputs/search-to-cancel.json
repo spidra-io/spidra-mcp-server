@@ -1,0 +1,27 @@
+{
+ "tool": "spidra_search",
+ "args": {
+  "query": "x",
+  "limit": 1
+ },
+ "structuredContent": {
+  "success": true,
+  "data": {
+   "web": [
+    {
+     "title": "X. It's what's happening / X",
+     "url": "https://x.com/?lang=en",
+     "description": "From breaking news and entertainment to sports and politics, get the full story with all the live commentary.",
+     "position": 1
+    }
+   ],
+   "nextPageTokens": {
+    "web": "v1.EkzjuRI-w6nl-cpU-KtfDSxi8B4-EoiASHdWbfNtsE3KKn81GC6dWA7z3x8_4wZ8Nk0FwAqhFxrBx3Hfj98E3SNGUr3EdeCVP4uFp8Tq9G-Ahk1oPGG5aeYVb6Fk9KpVxd0zU5Z-Sf3NhPVudtwYm1tdX-vkp24yiQUL8hX8YTJhtP0"
+   }
+  },
+  "stats": {
+   "durationMs": 1418
+  },
+  "logUuid": "5b5d6cba-4df2-4a94-9386-32df6e735a8c"
+ }
+}

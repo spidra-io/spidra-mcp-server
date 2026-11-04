@@ -1,0 +1,37 @@
+{
+ "tool": "spidra_get_job",
+ "args": {
+  "type": "parse",
+  "id": "5788a6a5-d5be-4ee1-a918-7d377876c064",
+  "includePages": true
+ },
+ "structuredContent": {
+  "jobId": "5788a6a5-d5be-4ee1-a918-7d377876c064",
+  "status": "completed",
+  "fileName": "1706.03762",
+  "sourceUrl": "https://arxiv.org/pdf/1706.03762",
+  "fileId": "b88d3481-ea07-44fd-83b9-0c90b2048e07",
+  "format": "PDF",
+  "totalPages": 15,
+  "pagesParsed": 1,
+  "creditsUsed": 1,
+  "markdown": "### Provided proper attribution is provided, Google hereby grants permission to\n\nreproduce the tables and figures in this paper solely for use in journalistic or scholarly works.\n\n## Attention Is All You Need\n\n#### Ashish Vaswani\n\n*∗* **Noam Shazeer** *∗* **Niki Parmar** *∗* **Jakob Uszkoreit** *∗* Google Brain Google Brain Google Research Google Research avaswani@google.com noam@google.com nikip@google.com usz@google.com\n\n#### Llion Jones\n\n*∗* **Aidan N. Gomez** *∗ †* **Łukasz Kaiser** *∗* Google Research University of Toronto Google Brain llion@google.com aidan@cs.toronto.edu lukaszkaiser@go... [shortened for the fixture]",
+  "pages": [
+   {
+    "pageNumber": 1,
+    "markdown": "### Provided proper attribution is provided, Google hereby grants permission to\n\nreproduce the tables and figures in this paper solely for use in journalistic or scholarly works.\n\n## Attention Is All You Need\n\n#### Ashish Vaswani\n\n*∗* **Noam Shazeer** *∗* **Niki Parmar** *∗* **Jakob Uszkoreit** *∗* Google Brain Google Brain Google Research Google Research avaswani@google.com noam@google.com nikip@google.com usz@google.com\n\n#### Llion Jones\n\n*∗* **Aidan N. Gomez** *∗ †* **Łukasz Kaiser** *∗* Google Research University of Toronto Google Brain llion@google.com aidan@cs.toronto.edu lukaszkaiser@go... [shortened for the fixture]",
+    "method": "text"
+   }
+  ],
+  "warnings": [],
+  "metadata": {
+   "fileName": "1706.03762",
+   "sourceUrl": "https://arxiv.org/pdf/1706.03762",
+   "format": "pdf",
+   "totalPages": 15,
+   "pagesParsed": 1,
+   "ocrPages": 0
+  },
+  "durationMs": 3690
+ }
+}

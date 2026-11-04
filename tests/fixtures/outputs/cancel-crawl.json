@@ -1,0 +1,11 @@
+{
+ "tool": "spidra_cancel_job",
+ "args": {
+  "type": "crawl",
+  "id": "36346807-0532-453a-b9fb-3e98d7782d56"
+ },
+ "structuredContent": {
+  "status": "cancelled",
+  "jobId": "36346807-0532-453a-b9fb-3e98d7782d56"
+ }
+}

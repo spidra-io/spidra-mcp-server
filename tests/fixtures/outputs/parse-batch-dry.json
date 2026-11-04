@@ -1,0 +1,34 @@
+{
+ "tool": "spidra_parse",
+ "args": {
+  "urls": [
+   "https://arxiv.org/pdf/1706.03762",
+   "https://arxiv.org/pdf/1810.04805"
+  ],
+  "dryRun": true
+ },
+ "structuredContent": {
+  "status": "estimate",
+  "documents": [
+   {
+    "status": "estimate",
+    "fileId": "1406ffe2-4921-4f77-8bc6-b29f3324c0c0",
+    "fileName": "1706.03762",
+    "format": "PDF",
+    "totalPages": 15,
+    "pagesToParse": 15,
+    "credits": 15
+   },
+   {
+    "status": "estimate",
+    "fileId": "5cbf5ebf-5667-46db-84de-719443ca7b10",
+    "fileName": "1810.04805",
+    "format": "PDF",
+    "totalPages": 16,
+    "pagesToParse": 16,
+    "credits": 16
+   }
+  ],
+  "credits": 31
+ }
+}

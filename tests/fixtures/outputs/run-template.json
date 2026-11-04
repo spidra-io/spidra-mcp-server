@@ -1,0 +1,83 @@
+{
+ "tool": "spidra_run_template",
+ "args": {
+  "slug": "google-maps-leads",
+  "inputs": {
+   "query": "dentist",
+   "areas": [
+    "Lekki, Lagos"
+   ]
+  },
+  "limit": 3
+ },
+ "structuredContent": {
+  "runId": "8a55b0a9-ff88-4280-9a58-e91b22584aeb",
+  "template": "google-maps-leads",
+  "templateVersion": 5,
+  "presetId": null,
+  "tool": "batch",
+  "status": "completed",
+  "inputs": {
+   "query": "dentist",
+   "areas": [
+    "Lekki, Lagos"
+   ],
+   "pages": 1,
+   "findContacts": false,
+   "language": "en"
+  },
+  "createdAt": "2026-11-04T05:37:45.000Z",
+  "finishedAt": "2026-11-04T05:37:45.000Z",
+  "creditsUsed": 1,
+  "urlCount": 1,
+  "rowCount": 20,
+  "job": {
+   "tool": "batch",
+   "id": "1f6365ad-567e-4884-85ea-99e487666e42"
+  },
+  "progress": {
+   "completed": 1,
+   "failed": 0,
+   "total": 1
+  },
+  "failures": [],
+  "rows": [
+   {
+    "title": "Hilton Dental Clinic Lekki",
+    "category": "Dentist",
+    "phone": "+234 701 007 5124",
+    "website": "http://www.hiltondental.com.ng/",
+    "rating": 4.9,
+    "reviewsCount": 848,
+    "address": "13 Whitesands St, Ikate bustop, Lagos 105102, Lagos, Nigeria",
+    "googleMapsUrl": "https://www.google.com/maps?cid=9319131255046120133"
+   },
+   {
+    "title": "Toothmine Dental Clinic - Lekki",
+    "category": "Dentist",
+    "phone": "(432) 287-2064",
+    "website": "http://www.toothminedental.com/",
+    "rating": 4.9,
+    "reviewsCount": 147,
+    "address": "1 Theophilus Oji Street, Lekki Phase 1, Lagos 105102, Lagos, Nigeria",
+    "googleMapsUrl": "https://www.google.com/maps?cid=7479003874010205694"
+   },
+   {
+    "title": "Zoom Exclusive Dental Care Lagos",
+    "category": "Dental clinic",
+    "phone": "+234 815 555 9878",
+    "website": "https://zoomexclusive.com/",
+    "rating": 4.8,
+    "reviewsCount": 1278,
+    "address": "Local Government, 29B Admiralty Wy, opposite Debonairs Pizza, beside Zenith Bank, Lekki Phase 1, Eti Osa 105102, Lagos, Nigeria",
+    "googleMapsUrl": "https://www.google.com/maps?cid=16999565567196707850"
+   }
+  ],
+  "rowsShown": {
+   "offset": 0,
+   "count": 3,
+   "total": 20
+  },
+  "next": "More rows: call spidra_get_job {\"type\": \"template_run\", \"id\": \"8a55b0a9-ff88-4280-9a58-e91b22584aeb\", \"offset\": 3}."
+ }
+}

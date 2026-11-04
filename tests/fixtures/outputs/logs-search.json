@@ -1,0 +1,89 @@
+{
+ "tool": "spidra_logs",
+ "args": {
+  "tool": "search",
+  "limit": 2
+ },
+ "structuredContent": {
+  "logs": [
+   {
+    "uuid": "5b5d6cba-4df2-4a94-9386-32df6e735a8c",
+    "status": "success",
+    "started_at": "2026-11-04T05:38:34.000Z",
+    "finished_at": "2026-11-04T05:38:36.000Z",
+    "query": "x",
+    "sources": "web",
+    "country": null,
+    "include_domains": null,
+    "exclude_domains": null,
+    "scrape_content_enabled": 0,
+    "scrape_max_results": null,
+    "result_limit": 1,
+    "page": 1,
+    "time_range": null,
+    "filetype": null,
+    "result_data": {
+     "web": [
+      {
+       "title": "X. It's what's happening / X",
+       "url": "https://x.com/?lang=en",
+       "description": "From breaking news and entertainment to sports and politics, get the full story with all the live commentary.",
+       "position": 1
+      }
+     ]
+    },
+    "error_message": null,
+    "latency_ms": 1425,
+    "credits_used": 1,
+    "scraping_channel": "api"
+   },
+   {
+    "uuid": "0fc88659-6167-42ff-bb8c-8f8673ab8d76",
+    "status": "success",
+    "started_at": "2026-11-04T05:38:19.000Z",
+    "finished_at": "2026-11-04T05:38:21.000Z",
+    "query": "spidra web scraping api",
+    "sources": "web",
+    "country": null,
+    "include_domains": null,
+    "exclude_domains": null,
+    "scrape_content_enabled": 0,
+    "scrape_max_results": null,
+    "result_limit": 2,
+    "page": 1,
+    "time_range": null,
+    "filetype": null,
+    "result_data": {
+     "web": [
+      {
+       "title": "AI Web Crawler API for Agents and RAG | Spider",
+       "url": "https://spider.cloud/",
+       "description": "One API to scrape, crawl, and search, backed by our own browser engine and network. Low cost, low latency, built to scale. Get started free. Copy setup prompt ...",
+       "position": 1
+      },
+      {
+       "title": "Firecrawl | Web Data API for AI Agents",
+       "url": "https://www.firecrawl.dev/",
+       "description": "Firecrawl is not just a scraper or a search API — it's the infrastructure layer that helps AI systems find, read, and act on information across the live web.",
+       "position": 2
+      }
+     ],
+     "extras": {
+      "relatedSearches": [
+       "ai web scraping tool free",
+       "web scraper api free",
+       "web scraper online tool free",
+       "ai web scraper",
+       "spider crawler"
+      ]
+     }
+    },
+    "error_message": null,
+    "latency_ms": 1570,
+    "credits_used": 1,
+    "scraping_channel": "api"
+   }
+  ],
+  "total": 4
+ }
+}

@@ -1,0 +1,52 @@
+{
+ "tool": "spidra_find_templates",
+ "args": {},
+ "structuredContent": {
+  "templates": [
+   {
+    "slug": "google-maps-leads",
+    "title": "Google Maps leads",
+    "summary": "Businesses with phone, website, rating and address for a search in one or more areas, plus emails and social links if you want them.",
+    "site": "Google Maps"
+   },
+   {
+    "slug": "amazon-product-details",
+    "title": "Amazon product details",
+    "summary": "Price, buy box seller, rating, stock and specs for a list of products.",
+    "site": "Amazon"
+   },
+   {
+    "slug": "amazon-search-results",
+    "title": "Amazon search results",
+    "summary": "Every product for a keyword with price, rating and sponsored flag, across several pages, plus brand, buy box and best sellers rank if you want them.",
+    "site": "Amazon"
+   },
+   {
+    "slug": "amazon-best-sellers",
+    "title": "Amazon best sellers",
+    "summary": "The ranked best sellers in any Amazon category, plus brand, buy box and bullet points if you want them.",
+    "site": "Amazon"
+   },
+   {
+    "slug": "walmart-search-results",
+    "title": "Walmart products for a search or category",
+    "summary": "Every product for your keywords or category pages, with brand, price, was price, rating and seller, plus specs, UPC and returns if you want them.",
+    "site": "Walmart"
+   }
+  ],
+  "sites": [
+   "google-maps",
+   "amazon",
+   "walmart",
+   "ebay",
+   "indeed"
+  ],
+  "categories": [
+   "lead-generation",
+   "reviews",
+   "ecommerce",
+   "jobs",
+   "social-media"
+  ]
+ }
+}

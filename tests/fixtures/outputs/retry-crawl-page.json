@@ -1,0 +1,14 @@
+{
+ "tool": "spidra_retry_crawl_page",
+ "args": {
+  "jobId": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+  "pageId": "8e9cfe33-4888-4d64-b916-a89328d6e9bd"
+ },
+ "structuredContent": {
+  "success": true,
+  "data": "* **Title:** A Light in the Attic\n* **Price:** £51.77",
+  "tokensUsed": 652,
+  "creditsUsed": 1,
+  "message": "Page transformation retried successfully"
+ }
+}

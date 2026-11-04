@@ -1,0 +1,9 @@
+{
+ "tool": "spidra_delete_monitor",
+ "args": {
+  "monitorId": "29ffcc42-186a-4388-b5f7-fadff29fbe7e"
+ },
+ "structuredContent": {
+  "deleted": "29ffcc42-186a-4388-b5f7-fadff29fbe7e"
+ }
+}

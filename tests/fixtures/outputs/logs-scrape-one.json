@@ -1,0 +1,38 @@
+{
+ "tool": "spidra_logs",
+ "args": {
+  "tool": "scrape",
+  "id": "2fa30157-1f48-4833-9b22-965730db174b"
+ },
+ "structuredContent": {
+  "uuid": "2fa30157-1f48-4833-9b22-965730db174b",
+  "status": "success",
+  "started_at": "2026-11-04T05:38:05.000Z",
+  "finished_at": "2026-11-04T05:38:10.000Z",
+  "error_message": null,
+  "urls": [
+   {
+    "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+    "actions": []
+   }
+  ],
+  "extraction_prompt": null,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "tokens_used": 0,
+  "captcha_solved_count": 0,
+  "scraped_sites_count": 1,
+  "ai_output_format": "markdown",
+  "latency_ms": 4946,
+  "credits_used": 1,
+  "use_proxy": 0,
+  "proxy_country": null,
+  "scrape_mode": "default",
+  "extract_content_only": 1,
+  "schema_json": null,
+  "screenshot": 0,
+  "full_page_screenshot": 0,
+  "page_title": "A Light in the Attic | Books to Scrape - Sandbox",
+  "result_data": "![A Light in the Attic](https://books.toscrape.com/media/cache/fe/72/fe72f0532301ec28892ae79a629a293c.jpg)\n\n# A Light in the Attic\n\n£51.77\n\n In stock (22 available)\n\n---\n\n**Warning!** This is a demo website for web scraping purposes. Prices and ratings here were randomly assigned and have no real meaning.\n\n## Product Description\n\nIt's hard to imagine a world without A Light in the Attic. This now-classic collection of poetry and drawings from Shel Silverstein celebrates its 20th anniversary with this special edition. Silverstein's humorous and creative verse can amuse the dowdiest of readers. ... [shortened for the fixture]"
+ }
+}

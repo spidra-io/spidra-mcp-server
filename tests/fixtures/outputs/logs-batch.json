@@ -1,0 +1,43 @@
+{
+ "tool": "spidra_logs",
+ "args": {
+  "tool": "batch",
+  "limit": 2
+ },
+ "structuredContent": {
+  "jobs": [
+   {
+    "uuid": "d67f304b-446b-4c0b-90b1-d3f6dfa5689a",
+    "status": "completed",
+    "totalUrls": 1,
+    "completedCount": 1,
+    "failedCount": 0,
+    "outputFormat": "markdown",
+    "scrapingChannel": "playground",
+    "createdAt": "2026-11-04T05:38:05.000Z",
+    "finishedAt": "2026-11-04T05:38:10.000Z",
+    "firstUrl": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+    "creditsUsed": 1
+   },
+   {
+    "uuid": "1c7b486f-ef89-425f-98c8-e230468d3baf",
+    "status": "completed",
+    "totalUrls": 1,
+    "completedCount": 1,
+    "failedCount": 0,
+    "outputFormat": "markdown",
+    "scrapingChannel": "playground",
+    "createdAt": "2026-11-04T05:37:50.000Z",
+    "finishedAt": "2026-11-04T05:37:56.000Z",
+    "firstUrl": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+    "creditsUsed": 1
+   }
+  ],
+  "pagination": {
+   "page": 1,
+   "limit": 2,
+   "total": 7,
+   "totalPages": 4
+  }
+ }
+}

@@ -1,12 +1,14 @@
 import { z } from "zod";
-import { cookiesParam, getClient, reply, run, type Server } from "../shared.js";
+import { cookiesParam, getClient, MAX_WAIT_MS, reply, run, type Server } from "../shared.js";
+import { mapOutput, searchOutput } from "../outputs.js";
 
 export function registerFindTools(server: Server): void {
   server.addTool({
     name: "spidra_search",
     annotations: { title: "Search the web", readOnlyHint: true, openWorldHint: true },
+    output: searchOutput,
     description: `
-Search the web and get back ranked results: titles, links and descriptions, as a search engine shows them. Waits and returns the results, usually in a few seconds.
+Search the web and get back ranked results: titles, links and descriptions, as a search engine shows them. Waits and returns the results, usually in a few seconds. One that takes over 45 seconds (with scrapeOptions) returns a jobId for spidra_get_job.
 
 **Use it when** you don't know the URL yet, want news, images or videos, or want research papers (arXiv, PubMed, bioRxiv, medRxiv) or GitHub issues and pull requests.
 **Don't use it** for a URL you already have: spidra_scrape reads it directly and can extract fields with a prompt or schema.
@@ -48,16 +50,17 @@ Search the web and get back ranked results: titles, links and descriptions, as a
         .optional()
         .describe("Also return each web result's page as Markdown, in this same call"),
     }),
-    execute: async (args, { session, log }) => {
+    execute: async (args, { session, log, signal }) => {
       const client = getClient(session);
       log.info("Searching", { query: args.query, sources: args.sources });
-      return run(async () => reply(await client.search(args, { timeout: 240_000 })));
+      return run(async () => reply(await client.search(args, { timeout: MAX_WAIT_MS, signal })));
     },
   });
 
   server.addTool({
     name: "spidra_map",
     annotations: { title: "List a site's URLs", readOnlyHint: true, openWorldHint: true },
+    output: mapOutput,
     description: `
 List a website's page URLs without scraping them, from its sitemaps and the links on its pages. Waits and returns the URLs, usually in a few seconds.
 

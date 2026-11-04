@@ -1,0 +1,45 @@
+{
+ "tool": "spidra_crawl_pages",
+ "args": {
+  "jobId": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+  "limit": 2
+ },
+ "structuredContent": {
+  "pages": [
+   {
+    "id": "8e9cfe33-4888-4d64-b916-a89328d6e9bd",
+    "job_id": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+    "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+    "status": "success",
+    "title": "A Light in the Attic | Books to Scrape - Sandbox",
+    "data": {
+     "title": "A Light in the Attic",
+     "price": "£51.77"
+    },
+    "error_message": null,
+    "created_at": "2026-11-04T05:36:25.000Z",
+    "html": "https://files.example/redacted",
+    "markdown": "https://files.example/redacted"
+   },
+   {
+    "id": "d12302c3-321e-46b5-9155-794e70252d4a",
+    "job_id": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+    "url": "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
+    "status": "success",
+    "title": "Tipping the Velvet | Books to Scrape - Sandbox",
+    "data": {
+     "title": "Tipping the Velvet",
+     "price": "£53.74"
+    },
+    "error_message": null,
+    "created_at": "2026-11-04T05:36:25.000Z",
+    "html": "https://files.example/redacted",
+    "markdown": "https://files.example/redacted"
+   }
+  ],
+  "total": 2,
+  "offset": 0,
+  "limit": 2,
+  "hasMore": false
+ }
+}

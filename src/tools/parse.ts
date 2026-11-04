@@ -1,14 +1,12 @@
-import { UserError } from "fastmcp";
 import { z } from "zod";
-import { getClient, jsonSchemaParam, reply, run, type Server } from "../shared.js";
-
-const WAIT_MS = 50_000;
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+import { getClient, jsonSchemaParam, MAX_WAIT_MS, reply, run, type Server, sleep, UserError } from "../shared.js";
+import { parseOutput } from "../outputs.js";
 
 export function registerParseTools(server: Server): void {
   server.addTool({
     name: "spidra_parse",
-    annotations: { title: "Parse documents", readOnlyHint: true, openWorldHint: true },
+    annotations: { title: "Parse documents", readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    output: parseOutput,
     description: `
 Turn documents into Markdown, page by page, and into JSON with a "prompt" or "schema". PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV and HTML files work, and scanned pages are read with AI.
 
@@ -23,7 +21,7 @@ Send the documents one way:
 
 - "pages" ("1-5, 9" or "10-") or "maxPages" parses only part of a long PDF.
 - "dryRun": true returns the page count and cost, for free, without parsing.
-- It waits up to about 50 seconds. A long document or a batch still running returns an id; check it with spidra_get_job (type "parse" or "parse_batch").
+- It waits up to about 45 seconds. A long document or a batch still running returns an id; check it with spidra_get_job (type "parse" or "parse_batch").
 
 **Cost:** 1 credit per page parsed, plus AI credits with a prompt or schema. Formats without pages count one page per 3,000 characters. Failed pages and documents cost nothing.
 
@@ -44,7 +42,7 @@ Send the documents one way:
       schema: jsonSchemaParam,
       dryRun: z.boolean().optional().describe("Return the pages and cost without parsing or charging"),
     }),
-    execute: async (args, { session, log }) => {
+    execute: async (args, { session, log, signal }) => {
       const client = getClient(session);
       const { url, fileBase64, fileName, fileId, urls, fileIds, dryRun, includePages, ...rest } = args;
       const options = { ...rest, includePages, schema: rest.schema as Record<string, unknown> | undefined };
@@ -61,16 +59,16 @@ Send the documents one way:
           log.info("Parsing batch", { documents: inputs.length });
           const started = await client.startParseBatch(inputs, { ...options, ...(dryRun ? { dryRun: true } : {}) } as never);
           if (dryRun) return reply(started);
-          const deadline = Date.now() + WAIT_MS;
+          const deadline = Date.now() + MAX_WAIT_MS;
           let batch = await client.getParseBatch(started.batchId);
-          while (batch.status === "running" && Date.now() < deadline) {
-            await sleep(3000);
+          while (batch.status === "running" && Date.now() + 3000 < deadline) {
+            await sleep(3000, signal);
             batch = await client.getParseBatch(started.batchId);
           }
           if (batch.status === "running") {
             return reply({
               ...batch,
-              next: `Still parsing. Check it with spidra_get_job {"type": "parse_batch", "id": "${started.batchId}"} in a little while.`,
+              next: `Still parsing. Check it with spidra_get_job {"type": "parse_batch", "id": "${started.batchId}", "waitSeconds": 30}.`,
             });
           }
           return reply(await client.getParseBatch(started.batchId, { includeResults: true }));
@@ -80,10 +78,10 @@ Send the documents one way:
         log.info("Parsing document", { source: url ?? fileName ?? fileId });
         if (dryRun) return reply(await client.estimateParse(input as never, options as never));
         const job = await client.startParse(input as never, options as never);
-        const deadline = Date.now() + WAIT_MS;
+        const deadline = Date.now() + MAX_WAIT_MS;
         let current = job;
-        while ((current.status === "queued" || current.status === "running") && Date.now() < deadline) {
-          await sleep(2000);
+        while ((current.status === "queued" || current.status === "running") && Date.now() + 2000 < deadline) {
+          await sleep(2000, signal);
           current = await client.getParse(job.jobId, { includePages });
         }
         if (current.status === "queued" || current.status === "running") {
@@ -91,7 +89,7 @@ Send the documents one way:
             jobId: job.jobId,
             status: current.status,
             ...(current.progress ? { progress: current.progress } : {}),
-            next: `Still parsing. Check it with spidra_get_job {"type": "parse", "id": "${job.jobId}"} in a little while.`,
+            next: `Still parsing. Check it with spidra_get_job {"type": "parse", "id": "${job.jobId}", "waitSeconds": 30}.`,
           });
         }
         return reply(current);

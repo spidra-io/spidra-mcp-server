@@ -1,6 +1,6 @@
-import { UserError } from "fastmcp";
 import { z } from "zod";
-import { getClient, reply, run, type Server } from "../shared.js";
+import { getClient, reply, run, type Server, UserError } from "../shared.js";
+import { createMonitorOutput, deletedOutput, listMonitorsOutput, messageOutput, monitorChangesOutput, updateMonitorOutput } from "../outputs.js";
 
 const sourceSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -106,6 +106,7 @@ export function registerMonitorTools(server: Server): void {
   server.addTool({
     name: "spidra_create_monitor",
     annotations: { title: "Create a monitor", readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    output: createMonitorOutput,
     description: `
 Watch a template, a preset or a list of pages on a schedule and get an alert when something changes: new or removed items, changed fields (like a price), or page text changes.
 
@@ -144,6 +145,7 @@ Watch a template, a preset or a list of pages on a schedule and get an alert whe
   server.addTool({
     name: "spidra_list_monitors",
     annotations: { title: "List monitors", readOnlyHint: true, openWorldHint: false },
+    output: listMonitorsOutput,
     description: `
 List the user's monitors with their schedule, last check and next check. Pass "monitorId" to get one in full. What changed is in spidra_monitor_changes.
 `,
@@ -172,7 +174,8 @@ List the user's monitors with their schedule, last check and next check. Pass "m
 
   server.addTool({
     name: "spidra_update_monitor",
-    annotations: { title: "Change a monitor", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: { title: "Change a monitor", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    output: updateMonitorOutput,
     description: `
 Change a monitor, or pause and resume it. Send only what changes; the fields are the same as spidra_create_monitor. "status": "paused" stops checks and keeps the history; "active" starts them again. Changing "sources" restarts the comparison for new sources, and "notify" replaces all channels.
 `,
@@ -199,6 +202,7 @@ Change a monitor, or pause and resume it. Send only what changes; the fields are
   server.addTool({
     name: "spidra_delete_monitor",
     annotations: { title: "Delete a monitor", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    output: deletedOutput,
     description: `
 Delete a monitor and its check history. To stop checks but keep the history, pause it with spidra_update_monitor instead. Confirm with the user before deleting.
 `,
@@ -215,6 +219,7 @@ Delete a monitor and its check history. To stop checks but keep the history, pau
   server.addTool({
     name: "spidra_check_monitor",
     annotations: { title: "Check a monitor now", readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    output: messageOutput,
     description: `
 Run a monitor's check now, outside its schedule. It runs in the background, costs what a scheduled check costs, and alerts like one. Once a minute at most per monitor. Read the result with spidra_monitor_changes after a little while.
 `,
@@ -231,6 +236,7 @@ Run a monitor's check now, outside its schedule. It runs in the background, cost
   server.addTool({
     name: "spidra_monitor_changes",
     annotations: { title: "What a monitor found", readOnlyHint: true, openWorldHint: false },
+    output: monitorChangesOutput,
     description: `
 A monitor's checks, newest first, with a one-line summary of each. Pass "checkId" for everything one check found, per source: new, changed and removed items (with old and new values), and page text changes. A source's first check has "baseline": true and only records the starting point. Checks are kept for 30 days.
 `,

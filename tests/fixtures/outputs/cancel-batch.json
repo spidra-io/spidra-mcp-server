@@ -1,0 +1,12 @@
+{
+ "tool": "spidra_cancel_job",
+ "args": {
+  "type": "batch",
+  "id": "ff85eb4b-a09e-4cbe-b631-dfde6a223a6b"
+ },
+ "structuredContent": {
+  "status": "cancelled",
+  "cancelledItems": 11,
+  "creditsRefunded": 11
+ }
+}

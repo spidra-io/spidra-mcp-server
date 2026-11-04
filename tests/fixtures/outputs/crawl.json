@@ -1,0 +1,14 @@
+{
+ "tool": "spidra_crawl",
+ "args": {
+  "baseUrl": "https://books.toscrape.com",
+  "crawlInstruction": "Individual book pages",
+  "transformInstruction": "Title and price",
+  "maxPages": 2
+ },
+ "structuredContent": {
+  "jobId": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+  "message": "Crawl job queued. Poll /api/crawl/fa48e78c-1529-4641-a5c9-702b0eef9023 for results.",
+  "next": "Queued. Check it with spidra_get_job {\"type\": \"crawl\", \"id\": \"fa48e78c-1529-4641-a5c9-702b0eef9023\", \"waitSeconds\": 30}."
+ }
+}

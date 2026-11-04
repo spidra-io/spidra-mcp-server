@@ -1,0 +1,41 @@
+{
+ "tool": "spidra_map",
+ "args": {
+  "url": "https://docs.python.org/3/",
+  "search": "asyncio",
+  "limit": 5
+ },
+ "structuredContent": {
+  "status": "success",
+  "links": [
+   {
+    "url": "https://docs.python.org/3/library/asyncio.html",
+    "title": "asyncio"
+   },
+   {
+    "url": "https://docs.python.org/3/library/asyncio-threading.html",
+    "title": "asyncio and free-threaded Python"
+   },
+   {
+    "url": "https://docs.python.org/3/howto/a-conceptual-overview-of-asyncio.html",
+    "title": "A conceptual overview of asyncio"
+   },
+   {
+    "url": "https://docs.python.org/3/library/asyncio-dev.html",
+    "title": "Create asynchronous generators only when the event loop is running"
+   },
+   {
+    "url": "https://docs.python.org/3/library/asyncio-task.html",
+    "title": "Scheduling from other threads"
+   }
+  ],
+  "total": 21,
+  "scanned": 595,
+  "sources": {
+   "sitemap": 7,
+   "pages": 588
+  },
+  "creditsUsed": 1,
+  "durationMs": 7028
+ }
+}

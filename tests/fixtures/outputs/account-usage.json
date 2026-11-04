@@ -1,0 +1,130 @@
+{
+ "tool": "spidra_account",
+ "args": {
+  "usage": "7d",
+  "byTool": true
+ },
+ "structuredContent": {
+  "plan": {
+   "name": "Free"
+  },
+  "credits": {
+   "limit": 300,
+   "used": 105,
+   "remaining": 195,
+   "billingCycleStart": "2026-11-03T08:15:17.000Z"
+  },
+  "proxyBandwidth": {
+   "limitMb": 50,
+   "usedMb": "0.000",
+   "remainingMb": 50
+  },
+  "subscription": {
+   "status": "active"
+  },
+  "monitors": {
+   "allowed": 2,
+   "used": 0,
+   "shortestScheduleMinutes": 1440
+  },
+  "usage": [
+   {
+    "label": "Oct 29",
+    "date": "2026-10-29",
+    "tokens": 0,
+    "requests": 0,
+    "crawls": 0,
+    "captchas": 0,
+    "latency": 0,
+    "credits": 0
+   },
+   {
+    "label": "Oct 30",
+    "date": "2026-10-30",
+    "tokens": 0,
+    "requests": 0,
+    "crawls": 0,
+    "captchas": 0,
+    "latency": 0,
+    "credits": 0
+   },
+   {
+    "label": "Oct 31",
+    "date": "2026-10-31",
+    "tokens": 0,
+    "requests": 0,
+    "crawls": 0,
+    "captchas": 0,
+    "latency": 0,
+    "credits": 0
+   },
+   {
+    "label": "Nov 1",
+    "date": "2026-11-01",
+    "tokens": 0,
+    "requests": 0,
+    "crawls": 0,
+    "captchas": 0,
+    "latency": 0,
+    "credits": 0
+   },
+   {
+    "label": "Nov 2",
+    "date": "2026-11-02",
+    "tokens": 0,
+    "requests": 0,
+    "crawls": 0,
+    "captchas": 0,
+    "latency": 0,
+    "credits": 0
+   }
+  ],
+  "creditsByTool": [
+   {
+    "label": "Oct 29",
+    "date": "2026-10-29",
+    "scrapeCredits": 0,
+    "crawlCredits": 0,
+    "searchCredits": 0,
+    "parseCredits": 0,
+    "mapCredits": 0
+   },
+   {
+    "label": "Oct 30",
+    "date": "2026-10-30",
+    "scrapeCredits": 0,
+    "crawlCredits": 0,
+    "searchCredits": 0,
+    "parseCredits": 0,
+    "mapCredits": 0
+   },
+   {
+    "label": "Oct 31",
+    "date": "2026-10-31",
+    "scrapeCredits": 0,
+    "crawlCredits": 0,
+    "searchCredits": 0,
+    "parseCredits": 0,
+    "mapCredits": 0
+   },
+   {
+    "label": "Nov 1",
+    "date": "2026-11-01",
+    "scrapeCredits": 0,
+    "crawlCredits": 0,
+    "searchCredits": 0,
+    "parseCredits": 0,
+    "mapCredits": 0
+   },
+   {
+    "label": "Nov 2",
+    "date": "2026-11-02",
+    "scrapeCredits": 0,
+    "crawlCredits": 0,
+    "searchCredits": 0,
+    "parseCredits": 0,
+    "mapCredits": 0
+   }
+  ]
+ }
+}

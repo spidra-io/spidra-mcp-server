@@ -1,0 +1,42 @@
+{
+ "tool": "spidra_get_job",
+ "args": {
+  "type": "batch",
+  "id": "5c0e5653-4ab7-4d11-b3b3-72f79a7c3412"
+ },
+ "structuredContent": {
+  "batchId": "5c0e5653-4ab7-4d11-b3b3-72f79a7c3412",
+  "status": "completed",
+  "totalUrls": 2,
+  "completedCount": 1,
+  "failedCount": 1,
+  "items": [
+   {
+    "uuid": "39038d60-7447-46d7-b624-626b24e94704",
+    "url": "https://quotes.toscrape.com/page/1/",
+    "jobId": "834818fe-707b-4f3e-a8ef-199a2e2e2d14",
+    "status": "completed",
+    "result": "# [Quotes to Scrape](https://quotes.toscrape.com/) \n\n[Login](https://quotes.toscrape.com/login) \n\n“The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.” by Albert Einstein [(about)](https://quotes.toscrape.com/author/Albert-Einstein) \n\n Tags:[change](https://quotes.toscrape.com/tag/change/page/1/) [deep-thoughts](https://quotes.toscrape.com/tag/deep-thoughts/page/1/) [thinking](https://quotes.toscrape.com/tag/thinking/page/1/) [world](https://quotes.toscrape.com/tag/world/page/1/) \n\n“It is our choices, Harry, that show what we truly ... [shortened for the fixture]",
+    "error": null,
+    "creditsUsed": 1,
+    "startedAt": "2026-11-04T05:34:47.000Z",
+    "finishedAt": "2026-11-04T05:34:53.000Z",
+    "screenshotUrl": null
+   },
+   {
+    "uuid": "94d86cbd-57c6-4f6c-8220-401e528687d2",
+    "url": "https://this-domain-does-not-exist-spidra.example/",
+    "jobId": "d646c707-b719-4df8-8eb0-633c440f099b",
+    "status": "failed",
+    "result": null,
+    "error": "Failed to scrape https://this-domain-does-not-exist-spidra.example/: the page could not be reached (ERR_TUNNEL_CONNECTION_FAILED)",
+    "creditsUsed": 0,
+    "startedAt": "2026-11-04T05:34:53.000Z",
+    "finishedAt": "2026-11-04T05:34:57.000Z",
+    "screenshotUrl": null
+   }
+  ],
+  "createdAt": "2026-11-04T05:34:47.000Z",
+  "finishedAt": "2026-11-04T05:34:57.000Z"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "tool": "spidra_batch_scrape",
+ "args": {
+  "urls": [
+   "https://quotes.toscrape.com/page/1/",
+   "https://quotes.toscrape.com/page/2/",
+   "https://quotes.toscrape.com/page/3/",
+   "https://quotes.toscrape.com/page/4/",
+   "https://quotes.toscrape.com/page/5/"
+  ]
+ },
+ "structuredContent": {
+  "batchId": "ff85eb4b-a09e-4cbe-b631-dfde6a223a6b",
+  "total": 12,
+  "next": "Queued. Check it with spidra_get_job {\"type\": \"batch\", \"id\": \"ff85eb4b-a09e-4cbe-b631-dfde6a223a6b\", \"waitSeconds\": 30} until status is completed."
+ }
+}

@@ -1,11 +1,12 @@
-import { UserError } from "fastmcp";
 import { z } from "zod";
-import { getClient, reply, run, type Server } from "../shared.js";
+import { getClient, reply, run, type Server, UserError } from "../shared.js";
+import { deletedOutput, listPresetsOutput, runPresetOutput, savePresetOutput } from "../outputs.js";
 
 export function registerPresetTools(server: Server): void {
   server.addTool({
     name: "spidra_list_presets",
     annotations: { title: "List saved presets", readOnlyHint: true, openWorldHint: false },
+    output: listPresetsOutput,
     description: `
 List the user's saved presets, newest first: saved template runs (a template and its inputs) and saved tool requests. Pass "presetId" to get one in full. Run one with spidra_run_preset.
 `,
@@ -38,7 +39,8 @@ List the user's saved presets, newest first: saved template runs (a template and
 
   server.addTool({
     name: "spidra_save_preset",
-    annotations: { title: "Save a preset", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: { title: "Save a preset", readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    output: savePresetOutput,
     description: `
 Save a job so it can run again with one call, or change a saved one.
 
@@ -81,7 +83,8 @@ Presets can also be watched for changes with spidra_create_monitor.
 
   server.addTool({
     name: "spidra_run_preset",
-    annotations: { title: "Run a preset", readOnlyHint: true, openWorldHint: true },
+    annotations: { title: "Run a preset", readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    output: runPresetOutput,
     description: `
 Run a saved preset. "overrides" changes template inputs, or request fields of a tool preset, for this run only.
 
@@ -100,6 +103,7 @@ A template preset returns its template run (check a running one with spidra_get_
   server.addTool({
     name: "spidra_delete_preset",
     annotations: { title: "Delete a preset", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    output: deletedOutput,
     description: `
 Delete a saved preset. Runs already made from it stay in the history. A monitor that watches it starts failing until its sources are changed. Confirm with the user before deleting.
 `,

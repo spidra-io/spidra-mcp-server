@@ -1,0 +1,13 @@
+{
+ "tool": "spidra_crawl",
+ "args": {
+  "baseUrl": "https://quotes.toscrape.com",
+  "crawlInstruction": "Author pages",
+  "maxPages": 3
+ },
+ "structuredContent": {
+  "jobId": "36346807-0532-453a-b9fb-3e98d7782d56",
+  "message": "Crawl job queued. Poll /api/crawl/36346807-0532-453a-b9fb-3e98d7782d56 for results.",
+  "next": "Queued. Check it with spidra_get_job {\"type\": \"crawl\", \"id\": \"36346807-0532-453a-b9fb-3e98d7782d56\", \"waitSeconds\": 30}."
+ }
+}

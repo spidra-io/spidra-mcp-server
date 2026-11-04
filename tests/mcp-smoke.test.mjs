@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SERVER_ENTRY = path.join(__dirname, "..", "dist", "index.js");
+// SPIDRA_MCP_ENTRY tests an installed copy instead, e.g. node_modules/spidra-mcp/dist/index.js in spidra-backend.
+const SERVER_ENTRY = process.env.SPIDRA_MCP_ENTRY || path.join(__dirname, "..", "dist", "index.js");
 
 // ---------------------------------------------------------------------------
 // Fake Spidra API
@@ -14,6 +15,7 @@ const SERVER_ENTRY = path.join(__dirname, "..", "dist", "index.js");
 
 const recorded = [];
 let scrapePollCount = 0;
+let slowPolls = 0;
 
 const fakeApi = createServer((req, res) => {
   let body = "";
@@ -119,6 +121,15 @@ const fakeApi = createServer((req, res) => {
     if (req.method === "GET" && req.url?.startsWith("/api/parse/parse-1")) {
       return send(200, { jobId: "parse-1", status: "completed", fileName: "a.pdf", fileId: "f1", format: "PDF", totalPages: 2, pagesParsed: 2, creditsUsed: 2, markdown: "# Parsed heading" });
     }
+    if (req.method === "POST" && req.url === "/api/map" && JSON.parse(body).url === "https://huge.example.com") {
+      const links = Array.from({ length: 6 }, (_, i) => ({ url: `https://huge.example.com/${i}`, title: "x".repeat(30_000) }));
+      return send(200, { status: "success", links, total: 6, scanned: 6, creditsUsed: 1 });
+    }
+    if (req.method === "GET" && req.url === "/api/scrape/job-slow") {
+      slowPolls++;
+      if (slowPolls < 2) return send(200, { status: "active", progress: { message: "working", progress: 50 } });
+      return send(200, { status: "completed", result: { content: "slow but done", screenshots: [], stats: {} }, error: null });
+    }
     if (req.method === "POST" && req.url === "/api/map") {
       return send(200, { status: "success", links: [{ url: "https://example.com/pricing", title: "Pricing" }], total: 1, scanned: 12, sources: { sitemap: 10, pages: 2 }, creditsUsed: 1, durationMs: 800 });
     }
@@ -183,6 +194,10 @@ const fakeApi = createServer((req, res) => {
     }
     if (req.method === "POST" && req.url === "/api/monitors") {
       return send(403, { status: "error", code: "MONITOR_LIMIT", message: "Your plan includes 2 monitors. Delete one or upgrade to add more." });
+    }
+    if (req.method === "GET" && req.url === "/api/templates/google-maps-lead") {
+      // The backend's real message for a wrong slug.
+      return send(404, { status: "error", message: 'There is no template called "google-maps-lead". GET /api/templates lists them.' });
     }
     if (req.method === "GET" && req.url === "/api/templates/google-maps-leads") {
       return send(200, { status: "success", template: { slug: "google-maps-leads", version: 4, title: "Google Maps leads", summary: "s", site: { key: "google-maps", name: "Google Maps", domain: "google.com" }, categories: [], tool: "batch", inputs: [{ key: "query", label: "Business type", type: "text", required: true }], columns: [{ key: "title", label: "Name" }, { key: "socials.instagram", label: "Instagram" }], limits: [] } });
@@ -296,7 +311,7 @@ after(() => {
   fakeApi.close();
 });
 
-test("stdio stays clean — no log noise corrupted the JSON-RPC stream", async () => {
+test("stdio stays clean: no log noise corrupted the JSON-RPC stream", async () => {
   // initialize() in before() already proves framing works; assert we parsed it
   assert.ok(client);
 });
@@ -543,6 +558,14 @@ test("a missing job comes back as a tool error with guidance, not a crash", asyn
   assert.match(result.content[0].text, /spidra_logs/);
 });
 
+test("a wrong template slug points at spidra_find_templates, not a REST path or job expiry", async () => {
+  const result = await client.callTool("spidra_get_template", { slug: "google-maps-lead" });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /no template called "google-maps-lead"/);
+  assert.match(result.content[0].text, /spidra_find_templates/);
+  assert.doesNotMatch(result.content[0].text, /GET \/api|spidra_logs/);
+});
+
 test("missing API key produces a helpful tool error", async () => {
   const bare = new StdioMcpClient({ SPIDRA_API_KEY: "", SPIDRA_API_URL: `http://127.0.0.1:${apiPort}/api` });
   try {
@@ -552,5 +575,28 @@ test("missing API key produces a helpful tool error", async () => {
     assert.match(result.content[0].text, /SPIDRA_API_KEY/);
   } finally {
     bare.kill();
+  }
+});
+
+test("spidra_get_job with waitSeconds waits for the job to finish in one call", async () => {
+  const result = await client.callTool("spidra_get_job", { type: "scrape", id: "job-slow", waitSeconds: 10 });
+  assert.equal(result.structuredContent.status, "completed");
+  assert.equal(slowPolls, 2);
+});
+
+test("an oversized result is shrunk but stays valid JSON with structuredContent", async () => {
+  const result = await client.callTool("spidra_map", { url: "https://huge.example.com" });
+  assert.ok(result.structuredContent, "structuredContent kept");
+  const text = result.content[0].text;
+  assert.ok(text.length <= 80_000, `text is ${text.length} chars`);
+  assert.equal(JSON.parse(text).links.length, 6);
+  assert.match(result.structuredContent.links[0].title, /truncated/);
+});
+
+test("every input schema stays well under the size Claude web and Desktop drop a tool at (16,384 chars)", async () => {
+  const res = await client.request("tools/list");
+  for (const t of res.result.tools) {
+    const size = JSON.stringify(t.inputSchema).length;
+    assert.ok(size < 12_000, `${t.name} inputSchema is ${size} chars`);
   }
 });

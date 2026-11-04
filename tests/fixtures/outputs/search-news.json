@@ -1,0 +1,63 @@
+{
+ "tool": "spidra_search",
+ "args": {
+  "query": "web scraping",
+  "sources": [
+   "web",
+   "news"
+  ],
+  "limit": 2
+ },
+ "structuredContent": {
+  "success": true,
+  "data": {
+   "web": [
+    {
+     "title": "Web scraping - Wikipedia",
+     "url": "https://en.wikipedia.org/wiki/Web_scraping",
+     "description": "Web scraping, web harvesting, or web data extraction is data scraping used for extracting data from websites.",
+     "position": 1
+    },
+    {
+     "title": "What is Web Scraping? The Complete Guide for 2025",
+     "url": "https://www.scraperapi.com/web-scraping/",
+     "description": "Web scraping, or web data extraction, is the process of extracting publicly available web data using automated tools – web scrapers.",
+     "position": 2
+    }
+   ],
+   "extras": {
+    "relatedSearches": [
+     "web scraping with python",
+     "web scraping tool",
+     "web scraping extension",
+     "web scraping project",
+     "web scraping ai"
+    ]
+   },
+   "news": [
+    {
+     "title": "Meta delays new business terms after outcry over potential web scraping of news sites",
+     "url": "https://abcnews.com/Technology/wireStory/meta-delays-new-business-terms-after-outcry-potential-137777976",
+     "source": "ABC News - Breaking News, Latest News and Videos",
+     "date": "6 hours ago",
+     "position": 1
+    },
+    {
+     "title": "The New York Times sues Brave web browser for AI scraping and bypassing paywalls",
+     "url": "https://www.theverge.com/tech/1024588/brave-lawsuit-ai-scraping-new-york-times",
+     "source": "The Verge",
+     "date": "1 day ago",
+     "position": 2
+    }
+   ],
+   "nextPageTokens": {
+    "web": "v1.GHTI6xejZ3p5tVq7dTJ5ET9LdgMy5mcdm7wQyOFeU1syCIaokrUjN5Nm1kKeELtapSGgeUIcLAEpHaJJbfubj22Ts72fKYYFMv9H0ziA6B25yhsWgMWhXajZ8C9cKdjNM-pHXyESRe5lI_ysKB9_XRrmC_iv_ocICjklCei7i48976g",
+    "news": "v1.n4qggHhpFvkYP6SAMMnzsq0bbaH7Vs8Jmg2XAftYi6wPftCZ5FmkKzJ2I25efYdaf67gdyWvTcY5fxtR1xOlJGNrZAaRceqsv2pG9tvutI9-O6ZHGc7pH_qVruWngb2RKgd2LgPZmnzY1EW-MIe5vvggzLk5JWj74dCgh5DjFAYd1Eo"
+   }
+  },
+  "stats": {
+   "durationMs": 4937
+  },
+  "logUuid": "9d0c3128-ce69-44a5-b4be-7c9ae36801b9"
+ }
+}

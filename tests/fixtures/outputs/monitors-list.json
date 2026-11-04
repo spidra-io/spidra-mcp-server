@@ -1,0 +1,25 @@
+{
+ "tool": "spidra_list_monitors",
+ "args": {},
+ "structuredContent": {
+  "monitors": [
+   {
+    "id": "29ffcc42-186a-4388-b5f7-fadff29fbe7e",
+    "name": "Eval fixture",
+    "status": "active",
+    "sources": [
+     "books.toscrape.com"
+    ],
+    "schedule": {
+     "every": "1d",
+     "at": "09:00",
+     "timezone": "UTC"
+    },
+    "alertOn": "page",
+    "lastCheckAt": null,
+    "lastSummary": null,
+    "nextRunAt": "2026-11-04T09:00:00.000Z"
+   }
+  ]
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "tool": "spidra_monitor_changes",
+ "args": {
+  "monitorId": "29ffcc42-186a-4388-b5f7-fadff29fbe7e",
+  "checkId": "22deaf69-e5c8-45b4-989f-9f76594e566e"
+ },
+ "structuredContent": {
+  "id": "22deaf69-e5c8-45b4-989f-9f76594e566e",
+  "trigger": "manual",
+  "status": "completed",
+  "startedAt": "2026-11-04T05:37:50.000Z",
+  "finishedAt": "2026-11-04T05:37:57.000Z",
+  "creditsUsed": 1,
+  "hasChanges": false,
+  "summary": "Started watching (1 items)",
+  "notified": false,
+  "judgment": null,
+  "error": null,
+  "sources": [
+   {
+    "sourceId": "9f7bebcefd3a",
+    "label": "books.toscrape.com",
+    "baseline": true,
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "pages": [],
+    "rowCount": 1
+   }
+  ]
+ }
+}

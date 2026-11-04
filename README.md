@@ -33,50 +33,76 @@ All you have to do is describe what you want in plain language, and the assistan
 
 You need two things:
 
-1. **A Spidra account.** Sign up at [app.spidra.io](https://app.spidra.io). Using the API-key method below instead of OAuth? Create one under **API Keys**, keys start with `spd_`.
-2. **An MCP-compatible client.** Any of the assistants below works.
+1. **A Spidra account.** Sign up at [app.spidra.io](https://app.spidra.io). If you'll use an API key instead of signing in, create one under **API Keys**. Keys start with `spd_`.
+2. **An MCP client.** Any of the ones below works.
 
-That's it if you use the hosted endpoint below. Running the server yourself additionally needs **Node.js 20 or newer** (check with `node --version`), the `npx` command that runs it ships with Node.
+That's all for the hosted server. Running Spidra locally also needs **Node.js 20 or newer** (check with `node --version`); `npx` comes with Node.
 
-## Hosted (no install)
+## Connect your client
 
-All you have to do is point your client at `https://mcp.spidra.io/mcp`.
+There are two ways to connect:
 
-> Every request against the hosted endpoint is billed to your account exactly like a direct API call.
+- **Hosted (recommended).** Point your client at `https://mcp.spidra.io/mcp`. There's nothing to install. You sign in with your Spidra account in the browser, or send an API key in a header.
+- **Local.** Your client runs `npx -y spidra-mcp` on your machine and passes your API key as an environment variable. This needs Node.js 20 or newer.
 
-### OAuth (recommended)
+Every request is billed to your Spidra account exactly like a direct API call.
 
-Log in with your Spidra account in the browser.
+### How signing in works
+
+When your client connects, it opens a Spidra page in your browser. The page names the app asking for access (with a blue **Verified** badge and the app's real logo when its identity is verified, for example claude.ai or vscode.dev; an app that only names itself gets **Name not verified** and its initial) and says where you go back to afterwards. Click **Approve**, log in to Spidra if you aren't already, and the browser hands you back to your client. Most clients then refresh access in the background, so you sign in once.
+
+If your client can't sign in this way, or you're setting up CI, use an API key. Create one at [app.spidra.io](https://app.spidra.io) under **API Keys** (keys start with `spd_`) and send it as `Authorization: Bearer spd_...`.
+
+### Claude (claude.ai, Claude Desktop, mobile)
+
+1. Open **Customize** > **Connectors**, click **+**, then **Add custom connector**.
+2. Paste `https://mcp.spidra.io/mcp` and click **Add**.
+3. Ask Claude something that needs Spidra. Claude shows a **Connect** button the first time; click it and approve.
+
+On Team and Enterprise plans an owner adds the connector under **Organization settings** > **Connectors**, and each member clicks **Connect**. Claude Desktop reads remote servers only from Connectors, not from `claude_desktop_config.json`. To run Spidra locally in Claude Desktop instead, see [Local](#local).
+
+### Claude Code
 
 ```bash
 claude mcp add --transport http spidra https://mcp.spidra.io/mcp
+claude mcp login spidra
 ```
 
-Start a new Claude Code session and run `/mcp`. It opens a browser to log in and approve access, then shows the connection as active.
-
-> Logging in via OAuth automatically creates (and reuses) a dedicated API key labeled **MCP (OAuth)** on your account, visible and revocable anytime under **API Keys**, exactly like any other key.
-
-### API key (alternative)
-
-Prefer a static key for CI, scripting, or a client without OAuth support:
-
-#### Claude Code
+`claude mcp login` opens the sign-in page and prints `Authenticated with "spidra"` when you're done. You can also run `/mcp` inside a session. With an API key instead:
 
 ```bash
-claude mcp add --transport http spidra https://mcp.spidra.io/mcp --header "Authorization: Bearer spd_YOUR_API_KEY"
+claude mcp add --transport http spidra https://mcp.spidra.io/mcp \
+  --header "Authorization: Bearer spd_YOUR_API_KEY"
 ```
 
-Start a new Claude Code session, then run `/mcp` to confirm the connection shows as active.
+Add `-s user` to either command to make Spidra available in every project.
 
-#### Claude Desktop
+### ChatGPT
 
-Open **Settings** > **Developer** > **Edit Config**, and add the `spidra` entry inside `mcpServers`:
+1. Go to **Settings** > **Apps** > **Advanced settings** and turn on **Developer mode**.
+2. Click **Create app**, name it Spidra, paste `https://mcp.spidra.io/mcp`, choose **OAuth**, and create it.
+3. ChatGPT opens the Spidra sign-in page. Approve, and the app is ready in new chats.
+
+### Cursor
+
+[Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=spidra&config=eyJ1cmwiOiJodHRwczovL21jcC5zcGlkcmEuaW8vbWNwIn0=) (opens Cursor), or add this to `~/.cursor/mcp.json` (every project) or `.cursor/mcp.json` (one project):
 
 ```json
 {
   "mcpServers": {
     "spidra": {
-      "type": "http",
+      "url": "https://mcp.spidra.io/mcp"
+    }
+  }
+}
+```
+
+Then open **Cursor Settings**, find Spidra in the MCP servers list and click **Needs login**. If Spidra shows as connected but a tool call fails with "Unauthorized", use an API key:
+
+```json
+{
+  "mcpServers": {
+    "spidra": {
       "url": "https://mcp.spidra.io/mcp",
       "headers": {
         "Authorization": "Bearer spd_YOUR_API_KEY"
@@ -86,110 +112,153 @@ Open **Settings** > **Developer** > **Edit Config**, and add the `spidra` entry 
 }
 ```
 
-Quit and reopen Claude Desktop afterward.
+### VS Code (GitHub Copilot)
 
-#### Cursor
+Run this in a terminal:
 
-1. Open Cursor Settings
-2. Go to **Features** > **MCP Servers**
-3. Click **+ Add new global MCP server**
-4. Paste the following and replace the placeholder key:
+```bash
+code --add-mcp '{"name":"spidra","type":"http","url":"https://mcp.spidra.io/mcp"}'
+```
+
+It adds Spidra to your user `mcp.json`. Start the server from that file (or from the tools picker in Copilot Chat), allow VS Code to sign in to Spidra when it asks, and approve in the browser. For a workspace with an API key, put this in `.vscode/mcp.json`. VS Code asks for the key once and keeps it in its secret storage:
+
+```json
+{
+  "inputs": [
+    { "type": "promptString", "id": "spidra-key", "description": "Spidra API key", "password": true }
+  ],
+  "servers": {
+    "spidra": {
+      "type": "http",
+      "url": "https://mcp.spidra.io/mcp",
+      "headers": { "Authorization": "Bearer ${input:spidra-key}" }
+    }
+  }
+}
+```
+
+### Codex (CLI, IDE extension and app)
+
+Add this to `~/.codex/config.toml`, then run `codex mcp login spidra`:
+
+```toml
+[mcp_servers.spidra]
+url = "https://mcp.spidra.io/mcp"
+tool_timeout_sec = 300
+```
+
+`tool_timeout_sec` matters: Codex stops a tool call after 60 seconds by default, and a hard page or a batch can take longer. To use an API key instead of signing in, add `bearer_token_env_var = "SPIDRA_API_KEY"` to the same block and export `SPIDRA_API_KEY` in the shell that starts Codex.
+
+### Gemini CLI
+
+```bash
+gemini mcp add --transport http spidra https://mcp.spidra.io/mcp
+```
+
+Then run `/mcp auth spidra` inside Gemini CLI to sign in. With an API key instead:
+
+```bash
+gemini mcp add --transport http -H "Authorization: Bearer spd_YOUR_API_KEY" spidra https://mcp.spidra.io/mcp
+```
+
+### Windsurf (Devin Desktop)
+
+Open the MCP settings in Cascade and edit the raw config (`~/.config/devin/mcp_config.json`, or `%APPDATA%\devin\mcp_config.json` on Windows):
 
 ```json
 {
   "mcpServers": {
     "spidra": {
-      "type": "http",
       "url": "https://mcp.spidra.io/mcp",
-      "headers": {
-        "Authorization": "Bearer spd_YOUR_API_KEY"
-      }
+      "transport": "http"
     }
   }
 }
 ```
 
-You can also put this in a `.cursor/mcp.json` file inside a single project if you only want Spidra available there.
+Click **Authenticate** next to Spidra when it shows "Needs authentication". Older Windsurf builds keep this file at `~/.codeium/windsurf/mcp_config.json` and call the field `serverUrl`. For an API key, add `"headers": { "Authorization": "Bearer spd_YOUR_API_KEY" }`.
 
-#### VS Code
+### Cline
 
-Press `Ctrl + Shift + P` (or `Cmd + Shift + P` on Mac), type `Preferences: Open User Settings (JSON)`, and add:
-
-```json
-{
-  "mcp": {
-    "servers": {
-      "spidra": {
-        "type": "http",
-        "url": "https://mcp.spidra.io/mcp",
-        "headers": {
-          "Authorization": "Bearer spd_YOUR_API_KEY"
-        }
-      }
-    }
-  }
-}
-```
-
-In a `.vscode/mcp.json` workspace file, drop the outer `"mcp"` wrapper. The root key there is `servers` directly, not `mcpServers`.
-
-#### Windsurf
-
-Add this to `~/.codeium/windsurf/mcp_config.json`:
+Open **MCP Servers** > **Configure** and add this to `cline_mcp_settings.json`. Leave `"type"` in: without it Cline uses the old SSE transport. Cline gives up on a tool call after 60 seconds unless you raise `timeout`:
 
 ```json
 {
   "mcpServers": {
     "spidra": {
-      "type": "http",
+      "type": "streamableHttp",
       "url": "https://mcp.spidra.io/mcp",
-      "headers": {
-        "Authorization": "Bearer spd_YOUR_API_KEY"
-      }
+      "headers": { "Authorization": "Bearer spd_YOUR_API_KEY" },
+      "timeout": 300
     }
   }
 }
 ```
 
-#### Antigravity
+Use an API key in Cline for now. Its VS Code extension signs in through a callback address Spidra doesn't accept yet.
 
-Add this to `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace-local). Note the field is `serverUrl`, not `url`/`httpUrl`, Antigravity rejects those field names for remote servers:
+### Zed
+
+Add this under `context_servers` in Zed's `settings.json`. Zed opens the sign-in page when it connects:
+
+```json
+{
+  "context_servers": {
+    "spidra": {
+      "url": "https://mcp.spidra.io/mcp"
+    }
+  }
+}
+```
+
+With an API key, add `"headers": { "Authorization": "Bearer spd_YOUR_API_KEY" }`. Zed skips sign-in when a header is set.
+
+### Goose
+
+Run `goose configure`, choose **Add Extension** > **Remote Extension (Streamable HTTP)**, name it `spidra`, paste `https://mcp.spidra.io/mcp`, and set the timeout to 300. Goose opens the sign-in page the first time it connects.
+
+### Antigravity
+
+Add this to `~/.gemini/config/mcp_config.json`, or `.agents/mcp_config.json` for one workspace. The field is `serverUrl`; Antigravity doesn't accept `httpUrl`. `timeoutSeconds` raises its 180-second limit per tool call:
 
 ```json
 {
   "mcpServers": {
     "spidra": {
       "serverUrl": "https://mcp.spidra.io/mcp",
-      "headers": {
-        "Authorization": "Bearer spd_YOUR_API_KEY"
-      }
+      "timeoutSeconds": 300
     }
   }
 }
 ```
 
-## Local installation (stdio)
+Antigravity signs in on its own. For an API key, add `"headers": { "Authorization": "Bearer spd_YOUR_API_KEY" }`.
 
-Prefer to run the server yourself? Every setup below does the same thing: it tells your assistant to run `npx -y spidra-mcp` and hands the server your API key through an environment variable. 
+### Any other client
 
-This is also the option to use if you're calling a staging or self-hosted Spidra API instead of the public one, see [Configuration](#configuration).
+Add a remote **Streamable HTTP** server with the URL `https://mcp.spidra.io/mcp`. If the client supports OAuth for MCP, it finds the sign-in settings itself. Otherwise send `Authorization: Bearer spd_YOUR_API_KEY` (or `X-Spidra-Api-Key: spd_YOUR_API_KEY`). If the client has a tool timeout setting, set it to 300 seconds.
 
-### Claude Code
+## Local
 
-Run this one command in your terminal, replacing the placeholder with your real key:
+Every local setup runs `npx -y spidra-mcp` and passes your key in `SPIDRA_API_KEY`. Put the key in the client's `env` block, not in a `.env` file.
+
+**Claude Code:**
 
 ```bash
 claude mcp add spidra -e SPIDRA_API_KEY=spd_YOUR_API_KEY -- npx -y spidra-mcp
 ```
 
-Start a new Claude Code session, then run `/mcp` to confirm the connection shows as active.
+**Codex** (`~/.codex/config.toml`):
 
-### Cursor
+```toml
+[mcp_servers.spidra]
+command = "npx"
+args = ["-y", "spidra-mcp"]
+env = { SPIDRA_API_KEY = "spd_YOUR_API_KEY" }
+tool_timeout_sec = 300
+```
 
-1. Open Cursor Settings
-2. Go to **Features** > **MCP Servers**
-3. Click **+ Add new global MCP server**
-4. Paste the following and replace the placeholder key:
+**Claude Desktop, Cursor, Windsurf, Antigravity, Cline and most others** take the same JSON under `mcpServers`. In Claude Desktop it goes in **Settings** > **Developer** > **Edit Config**; quit and reopen Claude afterward.
 
 ```json
 {
@@ -205,86 +274,17 @@ Start a new Claude Code session, then run `/mcp` to confirm the connection shows
 }
 ```
 
-You can also put this in a `.cursor/mcp.json` file inside a project if you only want Spidra available there.
+**VS Code** uses `servers` instead of `mcpServers`, with `"type": "stdio"`:
 
-### Claude Desktop
-
-1. Open **Settings** > **Developer** > **Edit Config**. This opens `claude_desktop_config.json`
-2. Add the `spidra` entry inside `mcpServers` (create the object if the file is empty):
-
-```json
-{
-  "mcpServers": {
-    "spidra": {
-      "command": "npx",
-      "args": ["-y", "spidra-mcp"],
-      "env": {
-        "SPIDRA_API_KEY": "spd_YOUR_API_KEY"
-      }
-    }
-  }
-}
+```bash
+code --add-mcp '{"name":"spidra","type":"stdio","command":"npx","args":["-y","spidra-mcp"],"env":{"SPIDRA_API_KEY":"spd_YOUR_API_KEY"}}'
 ```
 
-3. Quit and reopen Claude Desktop. The tools appear under the tools icon in the chat input.
+**Gemini CLI** and **Zed** take `command`, `args` and `env` under `mcpServers` (Gemini, in `~/.gemini/settings.json`) or `context_servers` (Zed).
 
-### VS Code
+Using a staging or self-hosted Spidra API? See [Configuration](#configuration).
 
-Add this to your User Settings (JSON). Press `Ctrl + Shift + P` (or `Cmd + Shift + P` on Mac), type `Preferences: Open User Settings (JSON)`, and add:
-
-```json
-{
-  "mcp": {
-    "servers": {
-      "spidra": {
-        "command": "npx",
-        "args": ["-y", "spidra-mcp"],
-        "env": {
-          "SPIDRA_API_KEY": "spd_YOUR_API_KEY"
-        }
-      }
-    }
-  }
-}
-```
-
-To share the setup with your team instead, put the same `servers` block in a `.vscode/mcp.json` file in your repository and use a `promptString` input for the key so it never gets committed.
-
-### Windsurf
-
-Add this to `~/.codeium/windsurf/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "spidra": {
-      "command": "npx",
-      "args": ["-y", "spidra-mcp"],
-      "env": {
-        "SPIDRA_API_KEY": "spd_YOUR_API_KEY"
-      }
-    }
-  }
-}
-```
-
-### Antigravity
-
-Add this to `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace-local):
-
-```json
-{
-  "mcpServers": {
-    "spidra": {
-      "command": "npx",
-      "args": ["-y", "spidra-mcp"],
-      "env": {
-        "SPIDRA_API_KEY": "spd_YOUR_API_KEY"
-      }
-    }
-  }
-}
-```
+## Self-hosting
 
 ### Running over HTTP instead of stdio
 
@@ -294,9 +294,15 @@ By default the server talks to your client over stdio, which is what all the con
 env HTTP_STREAMABLE_SERVER=true SPIDRA_API_KEY=spd_YOUR_API_KEY npx -y spidra-mcp
 ```
 
-Then connect to `http://localhost:3000/mcp`. On this transport the API key can also be sent per request using an `Authorization: Bearer` header, which is useful when one server instance serves more than one user.
+Then connect to `http://localhost:3000/mcp`. On this transport the API key can also be sent per request using an `Authorization: Bearer` header, which is useful when one server instance serves more than one user. Bound to `localhost` (the default), the server only answers requests addressed to this machine, which protects it from DNS rebinding.
 
-This is exactly how the hosted `https://mcp.spidra.io/mcp` endpoint runs in production: one shared instance, keyed per request, so you don't need to set `SPIDRA_API_KEY` at all when using the hosted URL.
+This is exactly how the hosted `https://mcp.spidra.io/mcp` endpoint runs in production: one stateless instance, keyed per request, so you don't need to set `SPIDRA_API_KEY` at all when using the hosted URL.
+
+If you set `HOST` to anything other than `localhost` and also set `SPIDRA_API_KEY`, anyone who can reach the port can spend that key's credits. On a shared network, leave `SPIDRA_API_KEY` unset so every caller has to send their own key.
+
+### Protocol versions
+
+Both transports serve the current MCP revision, `2026-07-28` (no handshake, version and capabilities sent with every request), and every earlier one from `2024-11-05` to `2025-11-25` (the `initialize` handshake). Clients don't need any setting for this: the server answers each request in the revision the client speaks.
 
 ## Try it
 
@@ -323,11 +329,27 @@ These apply to the local/self-hosted server (npx, manual install, or your own HT
 | Variable | Required | Description |
 |---|---|---|
 | `SPIDRA_API_KEY` | Yes | Your Spidra API key, starting with `spd_` |
-| `SPIDRA_API_URL` | No | Override the API base URL, for staging or self-hosted setups |
+| `SPIDRA_API_URL` | No | Override the API base URL, for staging or self-hosted setups. It must be `https://`, or `http://` on localhost, so your key never travels in the clear; the server names the API host on stderr at startup |
 | `HTTP_STREAMABLE_SERVER` | No | Set to `true` to serve HTTP at `http://localhost:3000/mcp` instead of stdio |
 | `PORT` / `HOST` | No | Bind address for the HTTP transport. Defaults are `3000` and `localhost` |
+| `SPIDRA_MCP_DOTENV` | No | Set to `1` to read a `.env` file on stdio. Off by default: clients start the server in your project folder, and a `.env` in a cloned repo could otherwise point `SPIDRA_API_URL` at someone else's server. Over HTTP, `.env` is read as before |
 
-On the HTTP transport (self-hosted or hosted), the API key can also be sent per request via an `Authorization: Bearer` header, which is useful when one server instance serves more than one user. If a request carries both a header key and a logged-in OAuth session, the header key wins.
+On the HTTP transport (self-hosted or hosted), the API key can also be sent per request via an `Authorization: Bearer` header (or `X-Spidra-Api-Key`), which is useful when one server instance serves more than one user. If a request carries both a header key and a logged-in OAuth session, the header key wins.
+
+OAuth sign-in is only for the hosted endpoint, where Spidra's backend is the identity provider. It turns on when all of these are set:
+
+| Variable | Description |
+|---|---|
+| `MCP_PUBLIC_URL` | The server's public origin, e.g. `https://mcp.spidra.io`. The OAuth issuer; the protected resource is `<MCP_PUBLIC_URL>/mcp` |
+| `MCP_OAUTH_CLIENT_ID` / `MCP_OAUTH_CLIENT_SECRET` | This server's client credentials at the backend's `/api/oauth/*` endpoints |
+| `SPIDRA_API_URL` | The backend API, which also hosts the OAuth endpoints |
+| `MCP_OAUTH_SIGNING_KEY` | Recommended. Key for the sealed client IDs, codes and tokens. Without it, the key is derived from the client secret, so rotating the secret signs everyone out |
+| `MCP_OAUTH_SIGNING_KEYS` | Optional. Several keys, comma-separated, newest first, for a rotation: new tokens use the first, and the rest still open existing ones |
+| `MCP_OAUTH_EXTRA_REDIRECT_URIS` | Optional. Comma-separated exact redirect URIs to accept besides loopback addresses and the built-in client callbacks |
+
+With OAuth on, every MCP request without credentials gets a `401` with the sign-in challenge, from the first one, which is when Cursor, VS Code, Claude and ChatGPT start sign-in. The discovery documents and sign-in pages stay open. Nothing about OAuth is kept in memory, so restarts and deploys don't sign anyone out, and a backend hiccup answers `503` (retry) rather than anything that makes a client drop the session.
+
+The HTTP server also limits requests per minute: `MCP_RATE_ANONYMOUS` (60 per IP without credentials), `MCP_RATE_AUTHENTICATED` (600 per caller) and `MCP_RATE_SIGN_IN` (30 per IP on the sign-in pages). On `SIGTERM` it stops taking new requests and lets calls in flight finish, for up to `MCP_DRAIN_MS` (50,000), so set PM2's `kill_timeout` above that.
 
 ## How to choose a tool
 
@@ -383,6 +405,20 @@ When you need specific fields, ask for JSON and describe them, or give a JSON sc
 
 Template rows come back with just the template's table columns by default (name, phone, website and so on). Ask for full detail when you need every field; a Google Maps place has about 50.
 
+## Prompts
+
+The server also offers ready-made prompts, which appear in your client's prompt menu (for example `/` in Claude Code). Each one asks for a few details, then walks the assistant through the right tools, with a cost check first:
+
+| Prompt | What it does | Arguments |
+|---|---|---|
+| `find_local_leads` | Businesses of one kind in an area, from Google Maps | `business`, `area`, optional `count`, `contacts` |
+| `track_prices` | Reads current prices, then sets up a monitor for changes | `urls`, optional `schedule`, `alertWhen` |
+| `research_topic` | Searches, reads the best sources and answers with links | `topic`, optional `sources`, `depth` |
+| `crawl_docs` | Turns a docs site, or one section, into Markdown | `url`, optional `section`, `maxPages` |
+| `extract_document_table` | Pulls a table out of a PDF, Word, Excel or PowerPoint file | `url`, `table`, optional `pages` |
+| `use_template` | Finds and runs the ready-made template for a common job | `task` |
+| `watch_page` | Alerts when a page changes | `url`, optional `what`, `schedule` |
+
 ## Credits and how this server protects them
 
 Pages cost 1 credit each, plus AI credits when extraction runs, plus 5 credits per CAPTCHA solved. Search costs 1 credit per 10 results per source. Templates, presets and monitor checks cost what the job behind them costs. Failed pages and failed jobs cost nothing. Agent loops can burn credits quickly, so this server is built to prevent that:
@@ -393,10 +429,12 @@ Pages cost 1 credit each, plus AI credits when extraction runs, plus 5 credits p
 - Jobs that don't finish in the call return an id with instructions to check it, never to start again. Duplicate submissions within a few seconds are also merged on the server.
 - Errors say what to do: wait this long (rate limits), fix these fields (validation), or don't retry (out of credits, overdue payment, a plan limit).
 - Cancelling returns the credits held for work that hadn't started.
+- Tools that can spend a lot in one call (batch scrape, crawl, parse, run template, run preset) aren't marked read-only, so clients that ask before acting ask first.
+- No call waits longer than about 45 seconds. Past that you get the job's id, so a client that gives up at 60 seconds doesn't lead to a second run. While it waits, the server sends progress to clients that ask for it, and a call you cancel stops waiting at once.
 
 ## Output size
 
-Tool results are capped so they fit in the assistant's context: any one string at 20,000 characters and a whole result at 80,000 (about 20,000 tokens). Every cut says how to get the rest. Big lists page with `offset` and `limit`, template rows come back trimmed to their columns, and crawl results leave out per-page file links, which `spidra_crawl_pages` provides. Results also come back as `structuredContent` for clients that read fields directly.
+Tool results are capped so they fit in the assistant's context: a whole result at 80,000 characters (about 20,000 tokens), with long strings cut to 20,000 characters each, or shorter when that's what it takes to fit. Every cut says how to get the rest. Big lists page with `offset` and `limit`, template rows come back trimmed to their columns, and crawl results leave out per-page file links, which `spidra_crawl_pages` provides. Results also come back as `structuredContent` for clients that read fields directly, and every tool except `spidra_logs` publishes an `outputSchema` for it. The schemas are loose (every field optional, extra fields allowed), so a new API field never fails a call. When a result has too many items to fit even with short strings, lists are cut to their first items with a note, and it stays valid JSON.
 
 ## Error handling
 
@@ -416,6 +454,18 @@ Errors come back as readable messages, not stack traces, and each one carries gu
 
 Transient network failures and 5xx responses are retried automatically with backoff before you ever see an error, courtesy of the underlying [Spidra Node SDK](https://www.npmjs.com/package/spidra).
 
+## What changed in 0.8.0
+
+- **The current MCP revision, `2026-07-28`, works.** Clients that speak it (current Claude apps and others) were refused by 0.7.0 with "Unsupported protocol version". The server now runs on the official MCP SDK 2.x and answers both the new revision and every 2025-era one, over stdio and HTTP.
+- **OAuth sign-in rebuilt:** it starts on a `401` the way Claude and ChatGPT expect, supports Client ID Metadata Documents (Claude Code, ChatGPT) as well as dynamic registration, sends the RFC 9207 `iss` parameter, requires PKCE with S256, and survives server restarts. Redirect addresses are checked strictly.
+- **Security: a `.env` file in your project folder is no longer read on stdio.** Clients start `npx spidra-mcp` in the open project's folder, and in 0.7.0 a `.env` there (one shipped in a cloned repo, say) could set `SPIDRA_API_URL` and send your key to another server. `SPIDRA_API_URL` must now also be `https://`, or `http://` on localhost.
+- **Sign-in in Chrome and Safari works,** with a redesigned consent page that shows the app's real logo only when its identity is verified. On the hosted server, sign-in now starts when the client first connects, which Cursor needs.
+- **`spidra_get_job` can wait:** pass `waitSeconds` (up to 45) and it answers when the job finishes, instead of the assistant calling it over and over. No call waits longer than about 45 seconds, waits send progress, and cancelling a call stops it.
+- **Output schemas and prompts:** every tool except `spidra_logs` publishes an `outputSchema`, and seven prompts guide common jobs (see Prompts).
+- Tools that can spend a lot in one call ask for confirmation in clients that honor it. Restarts let calls in flight finish.
+- Long-running calls over HTTP stream keepalives, so proxies don't cut them off. Results are compact JSON and stay valid JSON when they're shortened. `spidra_logs` and `spidra_crawl_report` take their filters as fixed values, and the crawl report lists the `outside_start_path` reason.
+- Tool names and arguments are otherwise unchanged.
+
 ## What changed in 0.7.0
 
 - **New:** templates, presets and monitors (`spidra_find_templates`, `spidra_get_template`, `spidra_run_template`, the preset tools and the monitor tools), `spidra_account` for the credit balance, and `spidra_logs` for every tool's history.
@@ -428,9 +478,12 @@ Transient network failures and 5xx responses are retried automatically with back
 
 - **The assistant does not see any Spidra tools.** Restart your client after adding the config. Most clients only read MCP configuration at startup. In Claude Code, run `/mcp` to check the connection status.
 - **"No Spidra API key configured."** For local/stdio setups, the `SPIDRA_API_KEY` variable is not reaching the server, make sure it is inside the `env` block of the server entry, not at the top level of the config file. For the hosted endpoint, check your header name and value (below).
-- **Hosted endpoint returns a 401.** The header is missing, misnamed, or the key has been revoked. It must be exactly `Authorization: Bearer spd_...`, and the key must still exist under **API Keys** in your dashboard.
+- **Hosted endpoint returns a 401.** Without a key, that's the sign-in prompt: calling a tool starts OAuth in clients that support it, and other clients need a key. With a key, the header is missing or misnamed: it must be exactly `Authorization: Bearer spd_...` (or `X-Spidra-Api-Key: spd_...`). A key that was revoked under **API Keys** fails on the tool call instead, with a message saying so.
 - **OAuth login doesn't open a browser, or the client falls back to asking for a key.** Not every MCP client supports OAuth yet, use the API key method for that client instead. If a browser window did open but the flow failed partway through, retry; if it keeps failing, confirm you're logged into [app.spidra.io](https://app.spidra.io) in that browser.
-- **OAuth login fails with "Invalid or expired transaction" or similar, then the assistant reports no credentials found.** The login attempt was interrupted before it finished, usually from taking too long on the approve screen (the flow expires after 10 minutes) or retrying a stale login link. Remove and re-add the connector to start clean, and approve access promptly. Falls back to the API key method for that client if it keeps happening.
+- **OAuth sign-in says "This sign-in has expired" or "can't be confirmed".** The attempt took longer than 10 minutes, or the link was opened in a different browser from the one that started it. Start the connection again from your client and finish it in the same browser.
+- **"Unknown client_id" after upgrading.** Clients registered with 0.7.0 have to register again. Most do this on their own when you reconnect; otherwise remove and re-add the connector.
+- **A tool call stops after exactly 60 seconds.** That's your client's limit, not Spidra's. Codex and Cline default to 60 seconds; raise it to 300 (`tool_timeout_sec` in Codex, `timeout` in Cline, `timeoutSeconds` in Antigravity). The job keeps running either way, so ask for the result with `spidra_get_job` instead of starting it again.
+- **Cursor shows Spidra as connected, but tools fail with "Unauthorized".** Cursor didn't start the sign-in. Use the API key config in the [Cursor](#cursor) section.
 - **A scrape "timed out."** The job is still running on the server and nothing is lost. The error includes the job ID, and the assistant fetches the result with `spidra_get_job`. Bot-protected sites can take a couple of minutes.
 - **Results come back empty when using a schema.** Check the schema: every field you want must be defined with a type. An object with no properties gives the AI nothing to fill in.
 - **`npx` cannot find the package.** Make sure you are on Node 20 or newer and that your network allows access to the npm registry. This only applies to local/self-hosted setups, the hosted endpoint doesn't use `npx`.
@@ -442,9 +495,14 @@ git clone https://github.com/spidra-io/spidra-mcp-server.git
 cd spidra-mcp-server
 npm install
 npm run build       # bundles to dist/index.js
-npm test            # black-box smoke tests: spawns the built binary against a fake API
+npm test            # spawns the built server against a fake API: every tool, both protocol eras with the
+                    # official SDK 2.x and 1.x clients over stdio and HTTP, and the OAuth flow end to end
 npm run typecheck
 ```
+
+`npm test` also clicks through the OAuth consent page in Chromium, WebKit and Firefox when Playwright's browsers are installed (`npx playwright install chromium webkit firefox`), and saves screenshots to `SPIDRA_CONSENT_SHOTS` (default: a temp folder).
+
+`tests/evals/` runs realistic tasks through a real model (Claude Code headless, with only this server's tools) and scores tool choice, arguments, calls, credits and the answer. It spends real credits and model usage, so point it at a local API and run a few tasks at a time: `npm run build`, then `SPIDRA_EVAL_API_URL=http://localhost:4321/api SPIDRA_EVAL_API_KEY_FILE=<key file> node tests/evals/run.mjs --tasks credits_only,price_one` (`--list` shows the tasks).
 
 To run your local build against a local Spidra API, set `SPIDRA_API_URL=http://localhost:4321/api`.
 

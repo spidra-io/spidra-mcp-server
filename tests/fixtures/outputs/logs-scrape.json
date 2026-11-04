@@ -1,0 +1,72 @@
+{
+ "tool": "spidra_logs",
+ "args": {
+  "tool": "scrape",
+  "limit": 2
+ },
+ "structuredContent": {
+  "logs": [
+   {
+    "uuid": "2fa30157-1f48-4833-9b22-965730db174b",
+    "status": "success",
+    "started_at": "2026-11-04T05:38:05.000Z",
+    "finished_at": "2026-11-04T05:38:10.000Z",
+    "error_message": null,
+    "urls": [
+     {
+      "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+      "actions": []
+     }
+    ],
+    "extraction_prompt": null,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "tokens_used": 0,
+    "captcha_solved_count": 0,
+    "scraped_sites_count": 1,
+    "ai_output_format": "markdown",
+    "latency_ms": 4946,
+    "credits_used": 1,
+    "use_proxy": 0,
+    "proxy_country": null,
+    "scrape_mode": "default",
+    "extract_content_only": 1,
+    "schema_json": null,
+    "screenshot": 0,
+    "full_page_screenshot": 0,
+    "page_title": "A Light in the Attic | Books to Scrape - Sandbox"
+   },
+   {
+    "uuid": "7344b5fc-fc8f-4c16-9058-160eaf1ae619",
+    "status": "success",
+    "started_at": "2026-11-04T05:37:50.000Z",
+    "finished_at": "2026-11-04T05:37:56.000Z",
+    "error_message": null,
+    "urls": [
+     {
+      "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+      "actions": []
+     }
+    ],
+    "extraction_prompt": null,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "tokens_used": 0,
+    "captcha_solved_count": 0,
+    "scraped_sites_count": 1,
+    "ai_output_format": "markdown",
+    "latency_ms": 5737,
+    "credits_used": 1,
+    "use_proxy": 0,
+    "proxy_country": null,
+    "scrape_mode": "default",
+    "extract_content_only": 1,
+    "schema_json": null,
+    "screenshot": 0,
+    "full_page_screenshot": 0,
+    "page_title": "A Light in the Attic | Books to Scrape - Sandbox"
+   }
+  ],
+  "total": 32
+ }
+}

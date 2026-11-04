@@ -1,0 +1,28 @@
+{
+ "tool": "spidra_account",
+ "args": {},
+ "structuredContent": {
+  "plan": {
+   "name": "Free"
+  },
+  "credits": {
+   "limit": 300,
+   "used": 105,
+   "remaining": 195,
+   "billingCycleStart": "2026-11-03T08:15:17.000Z"
+  },
+  "proxyBandwidth": {
+   "limitMb": 50,
+   "usedMb": "0.000",
+   "remainingMb": 50
+  },
+  "subscription": {
+   "status": "active"
+  },
+  "monitors": {
+   "allowed": 2,
+   "used": 0,
+   "shortestScheduleMinutes": 1440
+  }
+ }
+}

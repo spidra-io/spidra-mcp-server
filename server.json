@@ -7,13 +7,13 @@
     "url": "https://github.com/spidra-io/spidra-mcp-server",
     "source": "github"
   },
-  "version": "0.7.0",
+  "version": "0.8.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "spidra-mcp",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "transport": {
         "type": "stdio"
       },
@@ -36,13 +36,15 @@
         {
           "name": "Authorization",
           "value": "Bearer {api_key}",
-          "isSecret": true
+          "isSecret": true,
+          "isRequired": false,
+          "description": "Optional. A Spidra API key; leave it out to sign in with OAuth instead."
         }
       ],
       "variables": {
         "api_key": {
           "description": "Your Spidra API key (get one at https://app.spidra.io under Settings > API Keys)",
-          "isRequired": true,
+          "isRequired": false,
           "isSecret": true
         }
       }

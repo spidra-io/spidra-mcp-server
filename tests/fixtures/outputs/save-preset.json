@@ -1,0 +1,16 @@
+{
+ "tool": "spidra_save_preset",
+ "args": {
+  "name": "Books map",
+  "kind": "tool",
+  "tool": "map",
+  "config": {
+   "url": "https://books.toscrape.com",
+   "limit": 3
+  }
+ },
+ "structuredContent": {
+  "id": "24d67e4d-8328-49e0-89c8-8c068dc92106",
+  "next": "Run it with spidra_run_preset {\"presetId\": \"24d67e4d-8328-49e0-89c8-8c068dc92106\"}."
+ }
+}

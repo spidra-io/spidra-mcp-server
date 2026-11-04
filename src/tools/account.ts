@@ -1,11 +1,12 @@
-import { UserError } from "fastmcp";
 import { z } from "zod";
-import { getClient, reply, run, type Server } from "../shared.js";
+import { getClient, reply, run, type Server, UserError } from "../shared.js";
+import { accountOutput } from "../outputs.js";
 
 export function registerAccountTools(server: Server): void {
   server.addTool({
     name: "spidra_account",
     annotations: { title: "Credits, plan and usage", readOnlyHint: true, openWorldHint: false },
+    output: accountOutput,
     description: `
 The user's plan, credits left this billing period, Stealth Mode bandwidth, and how many monitors the plan allows. Use it before a large batch, crawl or template run to check there's enough, or to answer "how many credits do I have".
 
@@ -50,7 +51,10 @@ Find past runs, newest first, or open one by its id. Every run is logged, includ
     parameters: z.object({
       tool: z.enum(["scrape", "search", "map", "parse", "crawl", "batch", "template"]).describe("Which tool's runs"),
       id: z.string().optional().describe("Open this one log instead of listing"),
-      status: z.string().optional().describe("Only runs with this status (see the description for each tool's values)"),
+      status: z
+        .enum(["success", "error", "in_progress", "cancelled", "empty", "queued", "running", "completed", "failed"])
+        .optional()
+        .describe("Only runs with this status. Each tool has its own values; see the description."),
       searchTerm: z.string().optional().describe("Matches the URL, query, prompt or file name"),
       page: z.number().int().min(1).optional().describe("Page number (default 1)"),
       limit: z.number().int().min(1).max(50).optional().describe("Runs per page (default 10)"),

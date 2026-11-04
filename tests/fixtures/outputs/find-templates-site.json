@@ -1,0 +1,40 @@
+{
+ "tool": "spidra_find_templates",
+ "args": {
+  "site": "google-maps"
+ },
+ "structuredContent": {
+  "templates": [
+   {
+    "slug": "google-maps-leads",
+    "title": "Google Maps leads",
+    "summary": "Businesses with phone, website, rating and address for a search in one or more areas, plus emails and social links if you want them.",
+    "site": "Google Maps"
+   },
+   {
+    "slug": "google-business-profile-audit",
+    "title": "Business Profile completeness check",
+    "summary": "A score out of 100 for each Google Business Profile, with the list of what to fix: claim, categories, reviews, rating, website, hours, description, photos, posts, replies, booking link and Q&A.",
+    "site": "Google Maps"
+   },
+   {
+    "slug": "google-business-profile",
+    "title": "Google Business Profile details",
+    "summary": "The full Business Profile for each place: claimed or not, badges, latest posts, booking and ordering providers, located in, and more.",
+    "site": "Google Maps"
+   },
+   {
+    "slug": "google-business-posts",
+    "title": "Google Business posts",
+    "summary": "Every update, event and offer a business posted on Google, with dates, buttons and images.",
+    "site": "Google Maps"
+   },
+   {
+    "slug": "google-business-questions",
+    "title": "Google Business Q&A",
+    "summary": "Questions people asked about a place on Google and every answer, including the owner's.",
+    "site": "Google Maps"
+   }
+  ]
+ }
+}

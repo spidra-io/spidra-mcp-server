@@ -1,0 +1,52 @@
+{
+ "tool": "spidra_scrape",
+ "args": {
+  "url": "https://quotes.toscrape.com",
+  "actions": [
+   {
+    "type": "click",
+    "selector": "#cookie-x",
+    "optional": true,
+    "timeout": 1000
+   },
+   {
+    "type": "evaluate",
+    "script": "document.querySelectorAll('.quote').length"
+   }
+  ],
+  "prompt": "First quote and author",
+  "output": "json"
+ },
+ "structuredContent": {
+  "content": {
+   "quote": "The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.",
+   "author": "Albert Einstein"
+  },
+  "actionResults": [
+   {
+    "index": 1,
+    "type": "click",
+    "status": "skipped",
+    "durationMs": 1010,
+    "error": "no element matches \"#cookie-x\" (waited 1 seconds)."
+   },
+   {
+    "index": 2,
+    "type": "evaluate",
+    "status": "ok",
+    "durationMs": 4,
+    "result": 10
+   }
+  ],
+  "warnings": [
+   "Action 1 (click) was skipped: no element matches \"#cookie-x\" (waited 1 seconds)."
+  ],
+  "stats": {
+   "durationMs": 10673,
+   "captchaSolvedCount": 0,
+   "inputTokens": 1115,
+   "outputTokens": 41,
+   "totalTokens": 1156
+  }
+ }
+}

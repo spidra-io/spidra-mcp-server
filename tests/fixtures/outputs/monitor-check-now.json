@@ -1,0 +1,10 @@
+{
+ "tool": "spidra_check_monitor",
+ "args": {
+  "monitorId": "29ffcc42-186a-4388-b5f7-fadff29fbe7e"
+ },
+ "structuredContent": {
+  "message": "Checking now. The result will show in the check history.",
+  "next": "Read it with spidra_monitor_changes {\"monitorId\": \"29ffcc42-186a-4388-b5f7-fadff29fbe7e\"} in about a minute."
+ }
+}

@@ -1,0 +1,9 @@
+{
+ "tool": "spidra_delete_preset",
+ "args": {
+  "presetId": "24d67e4d-8328-49e0-89c8-8c068dc92106"
+ },
+ "structuredContent": {
+  "deleted": "24d67e4d-8328-49e0-89c8-8c068dc92106"
+ }
+}

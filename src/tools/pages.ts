@@ -1,19 +1,21 @@
 import { z } from "zod";
-import { browserActionSchema, cookiesParam, getClient, jsonSchemaParam, proxyParams, reply, run, type Server } from "../shared.js";
+import { browserActionSchema, cookiesParam, getClient, jsonSchemaParam, MAX_WAIT_MS, proxyParams, reply, run, type Server } from "../shared.js";
+import { batchScrapeOutput, scrapeOutput } from "../outputs.js";
 
 export function registerPageTools(server: Server): void {
   server.addTool({
     name: "spidra_scrape",
     annotations: { title: "Scrape a web page", readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    output: scrapeOutput,
     description: `
-Read one known URL and get its content as Markdown, or the data you describe as JSON. Waits and returns the result, usually in a few seconds (up to a minute for hard pages).
+Read one known URL and get its content as Markdown, or the data you describe as JSON. Waits and returns the result, usually in a few seconds. A page that takes over 45 seconds returns its jobId instead: check it with spidra_get_job (type "scrape") rather than scraping again.
 
 **Use it for** one URL. Links to PDF, Word, Excel and PowerPoint files work too.
 **Don't use it for** more than one URL, even to compare two: spidra_batch_scrape gives each URL its own result. To find pages on a site, use spidra_map or spidra_crawl.
 
 - No "prompt" or "schema": the page as Markdown.
 - "prompt": what you want, in plain words; the AI picks the shape. Add "schema" for exact fields and types (null where the page has nothing).
-- Popular sites (Amazon, Google Maps, LinkedIn, YouTube, Zillow, Indeed and others): with "output": "json" and no prompt, "content" is the page's data in named fields, no AI needed. Otherwise that data is in "structuredData".
+- Popular sites (Amazon, Google Maps, LinkedIn, YouTube, Zillow, Indeed and others): with "output": "json" and no prompt, "content" is the page's data in named fields, no AI needed. Otherwise that data is in "structuredData". The same goes for Polymarket, Kalshi, CoinMarketCap, Crunchbase News, Google Business profiles and Google Search result pages.
 - "actions" runs browser steps first (click, type, scroll, forEach to go through a list); "instruction" does one task described in plain words instead. Never both. Steps run once and are never retried automatically, since a step like a form submission has effects.
 - If the result has "lowContent": true, the page came back nearly empty, usually because the site blocks automated visits. Call again with "useProxy": true.
 
@@ -50,7 +52,7 @@ Read one known URL and get its content as Markdown, or the data you describe as 
       deliveryZip: z.string().optional().describe('Amazon and Walmart product pages: the delivery postcode to check price and stock for, e.g. "90210"'),
       ...proxyParams,
     }),
-    execute: async (args, { session, log }) => {
+    execute: async (args, { session, log, signal }) => {
       const client = getClient(session);
       log.info("Scraping", { url: args.url });
       const hasSteps = Boolean(args.actions?.length || args.instruction);
@@ -76,7 +78,7 @@ Read one known URL and get its content as Markdown, or the data you describe as 
             ...(args.proxyCountry ? { proxyCountry: args.proxyCountry } : {}),
             scrapeMode: args.scrapeMode ?? (hasSteps ? "default" : "fast"),
           } as never,
-          { timeout: 240_000 }
+          { timeout: MAX_WAIT_MS, signal }
         );
 
         const first = result.data?.[0] as
@@ -120,12 +122,13 @@ Read one known URL and get its content as Markdown, or the data you describe as 
 
   server.addTool({
     name: "spidra_batch_scrape",
-    annotations: { title: "Scrape many URLs", readOnlyHint: true, openWorldHint: true },
+    annotations: { title: "Scrape many URLs", readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    output: batchScrapeOutput,
     description: `
 Read 2 to 50 known URLs, each on its own with its own result, using the same prompt or schema for all.
 
 **Use it for** anything with more than one URL: product pages, listings, articles, or just two pages to compare.
-**Waiting:** with "wait": true and 10 URLs or fewer, it waits (up to a few minutes) and returns the finished batch. Otherwise it returns a "batchId" straight away; check it with spidra_get_job (type "batch") every 10 to 15 seconds until "status" is completed or cancelled. Don't start the batch again while it runs.
+**Waiting:** with "wait": true and 10 URLs or fewer, it waits (up to 45 seconds) and returns the finished batch, or the batchId if it isn't done by then. Otherwise it returns a "batchId" straight away; check it with spidra_get_job (type "batch", with "waitSeconds" to wait for it) until "status" is completed or cancelled. Don't start the batch again while it runs.
 
 - "output" is "markdown" (default) or "json"; a schema sets "json". Popular-site pages also get "structuredData".
 - A completed batch can still have failed items: check "failedCount" and each item's "error". spidra_retry_batch re-runs only the failed ones.
@@ -146,7 +149,7 @@ Read 2 to 50 known URLs, each on its own with its own result, using the same pro
       wait: z.boolean().optional().describe("With 10 URLs or fewer, wait and return the finished batch instead of a batchId"),
       ...proxyParams,
     }),
-    execute: async (args, { session, log }) => {
+    execute: async (args, { session, log, signal }) => {
       const client = getClient(session);
       log.info("Submitting batch", { count: args.urls.length });
       return run(async () => {
@@ -154,13 +157,13 @@ Read 2 to 50 known URLs, each on its own with its own result, using the same pro
         const params = { ...rest, prompt: args.prompt ?? "" } as never;
         if (wait && args.urls.length <= 10) {
           // A slow batch surfaces as a timeout, which run() turns into "still running, check it with spidra_get_job".
-          return reply(await client.batchScrape(params, { timeout: 180_000 }));
+          return reply(await client.batchScrape(params, { timeout: MAX_WAIT_MS, signal }));
         }
         const queued = await client.startBatchScrape(params);
         return reply({
           batchId: queued.batchId,
           total: queued.total,
-          next: `Queued. Check it with spidra_get_job {"type": "batch", "id": "${queued.batchId}"} every 10 to 15 seconds until status is completed.`,
+          next: `Queued. Check it with spidra_get_job {"type": "batch", "id": "${queued.batchId}", "waitSeconds": 30} until status is completed.`,
         });
       });
     },

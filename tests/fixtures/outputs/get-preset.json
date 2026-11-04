@@ -1,0 +1,21 @@
+{
+ "tool": "spidra_list_presets",
+ "args": {
+  "presetId": "24d67e4d-8328-49e0-89c8-8c068dc92106"
+ },
+ "structuredContent": {
+  "id": "24d67e4d-8328-49e0-89c8-8c068dc92106",
+  "name": "Books map",
+  "description": "eval fixture",
+  "kind": "tool",
+  "tool": "map",
+  "template": null,
+  "inputs": null,
+  "config": {
+   "url": "https://books.toscrape.com",
+   "limit": 3
+  },
+  "inputsSummary": null,
+  "updatedAt": "2026-11-04T05:37:46.000Z"
+ }
+}

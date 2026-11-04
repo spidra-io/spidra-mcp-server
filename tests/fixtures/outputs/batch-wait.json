@@ -1,0 +1,53 @@
+{
+ "tool": "spidra_batch_scrape",
+ "args": {
+  "urls": [
+   "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+   "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html"
+  ],
+  "prompt": "Title and price",
+  "output": "json",
+  "wait": true
+ },
+ "structuredContent": {
+  "batchId": "67df5a36-723c-4937-a4d0-dba60327ad74",
+  "status": "completed",
+  "totalUrls": 2,
+  "completedCount": 2,
+  "failedCount": 0,
+  "items": [
+   {
+    "uuid": "af00a142-70b2-4cda-8dad-6f695993f4fe",
+    "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+    "jobId": "2a771f28-4a2f-4a4c-b70e-484fb70c9800",
+    "status": "completed",
+    "result": {
+     "title": "A Light in the Attic",
+     "price": "£51.77"
+    },
+    "error": null,
+    "creditsUsed": 2,
+    "startedAt": "2026-11-04T05:34:38.000Z",
+    "finishedAt": "2026-11-04T05:34:45.000Z",
+    "screenshotUrl": null
+   },
+   {
+    "uuid": "b063fa44-6b4e-43aa-b385-5ce225f66d21",
+    "url": "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
+    "jobId": "3b650269-84a4-4324-aa9d-b8a8f21b0880",
+    "status": "completed",
+    "result": {
+     "title": "Tipping the Velvet",
+     "price": "£53.74"
+    },
+    "error": null,
+    "creditsUsed": 2,
+    "startedAt": "2026-11-04T05:34:38.000Z",
+    "finishedAt": "2026-11-04T05:34:44.000Z",
+    "screenshotUrl": null
+   }
+  ],
+  "createdAt": "2026-11-04T05:34:38.000Z",
+  "finishedAt": "2026-11-04T05:34:45.000Z"
+ }
+}

@@ -1,6 +1,3 @@
-import { FastMCP, OAuthProvider, type ContentResult, type Logger } from "fastmcp";
-import type { IncomingHttpHeaders } from "node:http";
-import { z } from "zod";
 import {
   SpidraClient,
   SpidraError,
@@ -12,222 +9,194 @@ import {
   SpidraTimeoutError,
   SpidraValidationError,
 } from "spidra";
+import { z } from "zod";
+
+export { HTTP_MODE, logger } from "./logger.js";
 
 // ---------------------------------------------------------------------------
-// Transport / environment
+// Tool registration. Each tools/*.ts file registers its tools through this small interface; server.ts maps it onto
+// the MCP SDK, so the tool definitions don't depend on any one framework.
 // ---------------------------------------------------------------------------
 
-export const HTTP_MODE = process.env.HTTP_STREAMABLE_SERVER === "true";
-
+/** Who is calling: the Spidra API key for this request (from the header, OAuth, or SPIDRA_API_KEY on stdio). */
 export interface SessionData {
   spidraApiKey?: string;
+}
+
+export interface ToolLog {
+  info(message: string, data?: Record<string, unknown>): void;
+}
+
+export interface ToolResult {
+  content: { type: "text"; text: string }[];
+  structuredContent?: Record<string, unknown>;
+  isError?: boolean;
   [key: string]: unknown;
 }
 
-export type Server = FastMCP<SessionData>;
-
-// ---------------------------------------------------------------------------
-// Logging: stdio uses stdout for JSON-RPC framing, so never log there.
-// ---------------------------------------------------------------------------
-
-class ConsoleLogger implements Logger {
-  private shouldLog = HTTP_MODE;
-
-  debug(...args: unknown[]): void {
-    if (this.shouldLog) console.debug("[DEBUG]", new Date().toISOString(), ...args);
-  }
-  error(...args: unknown[]): void {
-    if (this.shouldLog) console.error("[ERROR]", new Date().toISOString(), ...args);
-  }
-  info(...args: unknown[]): void {
-    if (this.shouldLog) console.info("[INFO]", new Date().toISOString(), ...args);
-  }
-  log(...args: unknown[]): void {
-    if (this.shouldLog) console.log("[LOG]", new Date().toISOString(), ...args);
-  }
-  warn(...args: unknown[]): void {
-    if (this.shouldLog) console.warn("[WARN]", new Date().toISOString(), ...args);
-  }
+export interface ToolAnnotations {
+  title: string;
+  readOnlyHint: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
 }
 
-export const logger = new ConsoleLogger();
-
-// ---------------------------------------------------------------------------
-// Auth: env var for stdio, headers for HTTP transports
-// ---------------------------------------------------------------------------
-
-function extractApiKey(headers: IncomingHttpHeaders): string | undefined {
-  const headerKey = headers["x-spidra-api-key"] ?? headers["x-api-key"];
-  if (typeof headerKey === "string" && headerKey.trim().startsWith("spd_")) return headerKey.trim();
-
-  const authHeader = headers["authorization"];
-  if (typeof authHeader === "string" && authHeader.toLowerCase().startsWith("bearer ")) {
-    const token = authHeader.slice(7).trim();
-    // Only treat this as a raw API key if it actually looks like one, an
-    // OAuth access token (below) arrives the same way but isn't one.
-    if (token.startsWith("spd_")) return token;
-  }
-  return undefined;
+/** What a tool gets besides its arguments. signal aborts when the client cancels the call or goes away. */
+export interface ToolContext {
+  session: SessionData;
+  log: ToolLog;
+  signal?: AbortSignal;
 }
 
-// ---------------------------------------------------------------------------
-// OAuth: lets clients do a browser login instead of pasting an API key.
-// fastmcp's OAuthProvider handles the entire outer OAuth 2.1 dance (PKCE,
-// dynamic client registration, consent, discovery) on its own; Spidra's
-// backend is configured here as the single upstream confidential client it
-// talks to. Optional, only active when all three env vars below are set.
-// ---------------------------------------------------------------------------
+/**
+ * The longest any one call waits for a job, in ms. Codex, Cline and the MCP SDK client give up on a tool call at
+ * 60 s, and a client that gives up while the job runs leads to a second run and a second charge
+ * (MCP_SECOND_REVIEW M1). Past this, tools return the job's id for spidra_get_job.
+ */
+export const MAX_WAIT_MS = 45_000;
 
-const OAUTH_ENABLED =
-  HTTP_MODE &&
-  Boolean(process.env.MCP_OAUTH_CLIENT_ID && process.env.MCP_OAUTH_CLIENT_SECRET && process.env.MCP_PUBLIC_URL);
-
-export const oauthProvider = OAUTH_ENABLED
-  ? new OAuthProvider({
-      baseUrl: process.env.MCP_PUBLIC_URL!,
-      clientId: process.env.MCP_OAUTH_CLIENT_ID!,
-      clientSecret: process.env.MCP_OAUTH_CLIENT_SECRET!,
-      authorizationEndpoint: `${process.env.SPIDRA_API_URL}/oauth/authorize`,
-      tokenEndpoint: `${process.env.SPIDRA_API_URL}/oauth/token`,
-      // fastmcp's default (loopback-only: http://localhost:*, http://127.0.0.1:*)
-      // covers CLI-style loopback clients (Claude Code, Cursor desktop, VS Code
-      // desktop, Windsurf), but several clients proxy the OAuth callback through
-      // their own hosted domain instead of a local port. Each is listed as an
-      // exact literal (no wildcard), so this doesn't widen the open-redirect
-      // surface beyond these specific, vendor-documented URLs:
-      //   - Claude (web/Desktop/mobile/Cowork): https://claude.com/docs/connectors/building/authentication#callback-urls
-      //   - Cursor (web/cloud agents):          https://cursor.com/docs/mcp
-      //   - VS Code (vscode.dev / web):         https://code.visualstudio.com/api/extension-guides/ai/mcp
-      //   - Antigravity:                        https://antigravity.google/docs/mcp
-      allowedRedirectUriPatterns: [
-        "http://localhost:*",
-        "http://127.0.0.1:*",
-        "https://claude.ai/api/mcp/auth_callback",
-        "https://www.cursor.com/agents/mcp/oauth/callback",
-        "https://vscode.dev/redirect",
-        "https://insiders.vscode.dev/redirect",
-        "https://antigravity.google/oauth-callback",
-      ],
-    })
-  : undefined;
-
-// Resolves a validated OAuth session (an upstream access token WE issued via
-// /api/oauth/token) to the real Spidra API key it maps to. Server-to-server
-// only, never exposed to the browser or the MCP client.
-async function introspectOAuthToken(accessToken: string): Promise<string | undefined> {
-  try {
-    const response = await fetch(`${process.env.SPIDRA_API_URL}/oauth/introspect`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.MCP_OAUTH_CLIENT_SECRET}`,
-      },
-      body: JSON.stringify({ access_token: accessToken }),
-    });
-    if (!response.ok) {
-      logger.error(`OAuth token introspection failed: HTTP ${response.status}`);
-      return undefined;
-    }
-    const data = (await response.json()) as { active: boolean; apiKey?: string };
-    if (!data.active || !data.apiKey) {
-      logger.error("OAuth token introspection returned an inactive/invalid token");
-      return undefined;
-    }
-    return data.apiKey;
-  } catch (err) {
-    logger.error("OAuth token introspection request failed:", err);
-    return undefined;
-  }
+/** A sleep that ends early, with an AbortError, when the call is cancelled. */
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason ?? new DOMException("Cancelled", "AbortError"));
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason ?? new DOMException("Cancelled", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
-export async function authenticate(request?: { headers: IncomingHttpHeaders }): Promise<SessionData> {
-  // FastMCP invokes authenticate(undefined) for the stdio transport
-  if (!request) {
-    return { spidraApiKey: process.env.SPIDRA_API_KEY };
-  }
-
-  const headerKey = extractApiKey(request.headers);
-  if (headerKey) return { spidraApiKey: headerKey };
-
-  if (oauthProvider) {
-    try {
-      const session = await oauthProvider.authenticate(request as Parameters<typeof oauthProvider.authenticate>[0]);
-      const apiKey = session?.accessToken ? await introspectOAuthToken(session.accessToken) : undefined;
-      if (apiKey) return { spidraApiKey: apiKey };
-    } catch (err) {
-      // No valid OAuth session either, fall through to the same
-      // "no key configured" behavior a missing API key already gets,
-      // surfaced with a clear message at tool-call time in getClient().
-      logger.error("OAuth session validation failed:", err);
-    }
-  }
-
-  return { spidraApiKey: process.env.SPIDRA_API_KEY };
+export interface ToolDefinition<S extends z.ZodObject = z.ZodObject> {
+  name: string;
+  description: string;
+  annotations: ToolAnnotations;
+  parameters: S;
+  /**
+   * The result's shape, advertised as outputSchema. Every field is optional and objects allow extra fields (see
+   * outputs.ts), so a new API field never fails a call.
+   */
+  output?: z.ZodType;
+  execute: (args: z.infer<S>, context: ToolContext) => Promise<ToolResult>;
 }
+
+export interface Server {
+  addTool<S extends z.ZodObject>(tool: ToolDefinition<S>): void;
+}
+
+/** An error in the model's request that it can fix: its message is shown to the model as is. */
+export class UserError extends Error {}
 
 export function getClient(session?: SessionData): SpidraClient {
-  const apiKey = session?.spidraApiKey ?? process.env.SPIDRA_API_KEY;
+  const apiKey = session?.spidraApiKey;
   if (!apiKey) {
-    throw new Error(
-      "No Spidra credentials found. Log in with OAuth (supported clients prompt for this " +
-        "automatically on /mcp or first connect), or set the SPIDRA_API_KEY environment " +
-        "variable / send an Authorization: Bearer header with a key from https://app.spidra.io " +
-        "under API Keys."
+    throw new UserError(
+      "No Spidra credentials found. Sign in with OAuth (your client prompts for it on the hosted server, " +
+        "https://mcp.spidra.io/mcp), or set the SPIDRA_API_KEY environment variable, or send an " +
+        "Authorization: Bearer header with a key from https://app.spidra.io under API Keys."
     );
   }
-  return new SpidraClient({
-    apiKey,
-    ...(process.env.SPIDRA_API_URL ? { baseUrl: process.env.SPIDRA_API_URL } : {}),
-  });
+  const baseUrl = apiBaseUrl();
+  return new SpidraClient({ apiKey, ...(baseUrl ? { baseUrl } : {}) });
+}
+
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+/**
+ * SPIDRA_API_URL, checked: https anywhere, or http only on this computer, so the key never travels in the clear.
+ * Undefined means the SDK's default (https://api.spidra.io/api).
+ */
+export function apiBaseUrl(): string | undefined {
+  const raw = process.env.SPIDRA_API_URL?.trim();
+  if (!raw) return undefined;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new UserError(`SPIDRA_API_URL isn't a valid URL ("${raw}"). Leave it unset to use https://api.spidra.io/api.`);
+  }
+  if (url.protocol === "https:" || (url.protocol === "http:" && LOOPBACK.has(url.hostname))) return raw;
+  throw new UserError(
+    `SPIDRA_API_URL must be an https URL (or http on localhost), and "${url.origin}" isn't, so your API key won't be sent there. Leave it unset to use https://api.spidra.io/api.`
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Output shaping: keep tool results inside sane LLM context budgets
 // ---------------------------------------------------------------------------
 
-// One long string (a page's Markdown, a long AI answer) is capped at 20,000 characters, and a whole result at
-// 80,000 (about 20k tokens, under Claude Code's default 25k-token limit for a tool result). A single scrape answer
-// usually fits whole, and a batch or crawl with many items can't have one item eat the whole budget.
-const MAX_STRING_LENGTH = 20_000;
+// A whole result is capped at 80,000 characters (about 20k tokens, under Claude Code's default 25k-token limit for a
+// tool result). Long strings (a page's Markdown, a long AI answer) are cut first, at 20,000 characters each, then
+// tighter if the result still doesn't fit, so a batch or crawl with many items can't have one item eat the budget
+// and the result stays valid JSON with its structuredContent.
+const STRING_CAPS = [20_000, 8_000, 3_000, 1_000];
 const MAX_OUTPUT_LENGTH = 80_000;
 
-function truncateDeep(value: unknown): unknown {
+function truncateDeep(value: unknown, cap: number): unknown {
   if (typeof value === "string") {
-    return value.length > MAX_STRING_LENGTH
-      ? `${value.slice(0, MAX_STRING_LENGTH)}... [truncated ${value.length - MAX_STRING_LENGTH} of ${value.length} chars. To see the rest, ask a narrower question: a specific section, a JSON schema for just the fields you need, or fewer URLs or pages at once.]`
+    return value.length > cap
+      ? `${value.slice(0, cap)}... [truncated ${value.length - cap} of ${value.length} chars. To see the rest, ask a narrower question: a specific section, a JSON schema for just the fields you need, or fewer URLs or pages at once.]`
       : value;
   }
-  if (Array.isArray(value)) return value.map(truncateDeep);
+  if (Array.isArray(value)) return value.map(v => truncateDeep(v, cap));
   if (value !== null && typeof value === "object") {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = truncateDeep(v);
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = truncateDeep(v, cap);
     return out;
   }
   return value;
 }
 
-/**
- * A tool result: the data as JSON text for every client, and the same data as `structuredContent` for clients that
- * read fields directly. Over-long output is cut, with a note saying how to get the rest.
- */
-export function reply(value: unknown): ContentResult {
-  const shaped = truncateDeep(value);
-  const text = JSON.stringify(shaped, null, 2) ?? String(shaped);
-  if (text.length > MAX_OUTPUT_LENGTH) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `${text.slice(0, MAX_OUTPUT_LENGTH)}\n... [output truncated at ${MAX_OUTPUT_LENGTH} chars. Ask for less next time: fewer URLs or pages, a smaller limit, a JSON schema for just the fields you need, or page through with offset/limit.]`,
-        },
-      ],
-    };
+// When cutting strings isn't enough (too many items), lists are cut to their first N items, then fewer.
+const ARRAY_CAPS = [50, 20, 10, 5, 1];
+
+function limitArrays(value: unknown, max: number, cut: { count: number }): unknown {
+  if (Array.isArray(value)) {
+    if (value.length > max) cut.count += value.length - max;
+    return value.slice(0, max).map(v => limitArrays(v, max, cut));
   }
-  const structured =
-    shaped !== null && typeof shaped === "object" && !Array.isArray(shaped)
-      ? (shaped as Record<string, unknown>)
-      : { result: shaped };
-  return { content: [{ type: "text", text }], structuredContent: structured };
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = limitArrays(v, max, cut);
+    return out;
+  }
+  return value;
+}
+
+const asObject = (v: unknown): Record<string, unknown> =>
+  v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : { result: v };
+
+/**
+ * A tool result: the data as compact JSON text for every client, and the same data as `structuredContent` for
+ * clients that read fields directly. Over-long output is cut, with a note saying how to get the rest. The text is
+ * always valid JSON and `structuredContent` is always there, so tools with an outputSchema never fail on size.
+ */
+export function reply(value: unknown): ToolResult {
+  for (const cap of STRING_CAPS) {
+    const shaped = truncateDeep(value, cap);
+    const text = JSON.stringify(shaped) ?? String(shaped);
+    if (text.length <= MAX_OUTPUT_LENGTH) return { content: [{ type: "text", text }], structuredContent: asObject(shaped) };
+  }
+  // Too many items even with every string cut short: keep the first items of each list.
+  const shortStrings = truncateDeep(value, STRING_CAPS[STRING_CAPS.length - 1]);
+  for (const max of ARRAY_CAPS) {
+    const cut = { count: 0 };
+    const structured = {
+      ...asObject(limitArrays(shortStrings, max, cut)),
+      truncated: `Lists were cut to their first ${max} items (${cut.count} items left out) and long text to 1,000 characters to fit. Ask for less next time: fewer URLs or pages, a smaller limit, a JSON schema for just the fields you need, or page through with offset/limit.`,
+    };
+    const text = JSON.stringify(structured);
+    if (text.length <= MAX_OUTPUT_LENGTH) return { content: [{ type: "text", text }], structuredContent: structured };
+  }
+  const structured = {
+    truncated: `The result was too large to return (over ${MAX_OUTPUT_LENGTH} characters even when shortened). Ask for less: fewer URLs or pages, a smaller limit, or a JSON schema for just the fields you need.`,
+  };
+  return { content: [{ type: "text", text: JSON.stringify(structured) }], structuredContent: structured };
 }
 
 /**
@@ -238,7 +207,7 @@ function toToolError(err: unknown): Error {
     return new Error(
       `The job did not finish within the wait window, but it is STILL RUNNING` +
         (err.jobId ? ` (id: ${err.jobId})` : "") +
-        `. Do NOT start it again. Check it with spidra_get_job until it finishes.`
+        `. Do NOT start it again. Check it with spidra_get_job, with "waitSeconds": 30, until it finishes.`
     );
   }
   // The SDK maps every 403 to this class, but 403 also means a plan limit, another account's job, or a feature
@@ -276,9 +245,16 @@ function toToolError(err: unknown): Error {
     );
   }
   if (err instanceof SpidraNotFoundError) {
-    return new Error(
-      `Not found: ${err.message.replace(/\.$/, "")}. Check the ID. Finished scrape and search jobs can only be read for about an hour; after that, find them with spidra_logs.`
-    );
+    // Point at the tool that lists the right kind of thing (the API's own hint names a REST path, not a tool).
+    const message = err.message.replace(/\s*GET \/api\/\S+ lists them\.?/i, "").replace(/\.$/, "");
+    const hint = /template/i.test(message)
+      ? "Find the right slug with spidra_find_templates."
+      : /preset/i.test(message)
+        ? "spidra_list_presets lists the saved presets and their ids."
+        : /monitor/i.test(message)
+          ? "spidra_list_monitors lists the monitors and their ids."
+          : "Check the ID. Finished scrape and search jobs can only be read for about an hour; after that, find them with spidra_logs.";
+    return new Error(`Not found: ${message}. ${hint}`);
   }
   if (err instanceof SpidraJobError) {
     // A browser step that couldn't be done names itself: "Action 2 (click "#login") failed: <reason>".

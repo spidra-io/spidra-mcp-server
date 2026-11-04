@@ -1,16 +1,18 @@
 import { z } from "zod";
 import { cookiesParam, getClient, jsonSchemaParam, proxyParams, reply, run, type Server } from "../shared.js";
+import { crawlPagesOutput, crawlReportOutput, queuedOutput, retryCrawlPageOutput } from "../outputs.js";
 
 export function registerCrawlTools(server: Server): void {
   server.addTool({
     name: "spidra_crawl",
-    annotations: { title: "Crawl a website", readOnlyHint: true, openWorldHint: true },
+    annotations: { title: "Crawl a website", readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    output: queuedOutput,
     description: `
 Start at one URL and follow links to the kind of pages you describe, optionally extracting data from each. Returns a "jobId" straight away.
 
 **Use it when** you need many pages of one kind and don't know their URLs (every blog post, every product in a category, every page of docs).
 **Don't use it** when you know the URLs (spidra_batch_scrape) or only need a site's list of URLs (spidra_map, much cheaper).
-**Then:** check it with spidra_get_job (type "crawl") every 10 to 15 seconds until it's completed, failed or cancelled. Don't start it again while it runs. Stop a mistake with spidra_cancel_job.
+**Then:** check it with spidra_get_job (type "crawl", with "waitSeconds" to wait for it) until it's completed, failed or cancelled. Don't start it again while it runs. Stop a mistake with spidra_cancel_job.
 
 - "crawlInstruction" says which pages to return, e.g. "Individual book pages" or "Blog posts, not tag pages".
 - "transformInstruction" or "schema" extracts data from each page with AI. Leave both out for each page as Markdown, with no AI cost.
@@ -47,7 +49,7 @@ Start at one URL and follow links to the kind of pages you describe, optionally 
         return reply({
           jobId: queued.jobId,
           ...((queued as { message?: string }).message ? { message: (queued as { message?: string }).message } : {}),
-          next: `Queued. Check it with spidra_get_job {"type": "crawl", "id": "${queued.jobId}"} every 10 to 15 seconds.`,
+          next: `Queued. Check it with spidra_get_job {"type": "crawl", "id": "${queued.jobId}", "waitSeconds": 30}.`,
         });
       });
     },
@@ -56,6 +58,7 @@ Start at one URL and follow links to the kind of pages you describe, optionally 
   server.addTool({
     name: "spidra_crawl_pages",
     annotations: { title: "Read a crawl's pages", readOnlyHint: true, openWorldHint: false },
+    output: crawlPagesOutput,
     description: `
 Read a crawl's pages, in order, with each page's data and links to its Markdown and HTML (the links last 1 hour). Use it for crawls of more than 100 pages, since spidra_get_job returns only the first 100, or after a cancelled crawl to get the pages it finished.
 
@@ -75,14 +78,30 @@ Page through with "offset" and "limit" until "hasMore" is false. Keep "limit" sm
   server.addTool({
     name: "spidra_crawl_report",
     annotations: { title: "Why a crawl skipped pages", readOnlyHint: true, openWorldHint: false },
+    output: crawlReportOutput,
     description: `
 Explain a finished crawl: how it read the instruction, how many pages it read only to find the wanted ones (free), and every link it didn't follow, counted by reason. Pass "reason" to list the URLs for one reason, each with the page it was found on.
 
-Use it when a page you expected is missing, then adjust crawlInstruction, includePaths or maxPages and crawl again. Reasons: not_relevant, outside_domain, include_pattern, exclude_pattern, file_type, other_version_or_language, duplicate_page, redirected_off_site, robots_txt, action_link. The report is empty while the crawl runs.
+Use it when a page you expected is missing, then adjust crawlInstruction, includePaths or maxPages and crawl again. Reasons: not_relevant, outside_start_path (set crawlEntireDomain to include those), outside_domain, include_pattern, exclude_pattern, file_type, other_version_or_language, duplicate_page, redirected_off_site, robots_txt, action_link. The report is empty while the crawl runs.
 `,
     parameters: z.object({
       jobId: z.string().describe("The crawl's jobId"),
-      reason: z.string().optional().describe('List skipped URLs for this reason only, e.g. "not_relevant"'),
+      reason: z
+        .enum([
+          "not_relevant",
+          "outside_start_path",
+          "outside_domain",
+          "include_pattern",
+          "exclude_pattern",
+          "file_type",
+          "other_version_or_language",
+          "duplicate_page",
+          "redirected_off_site",
+          "robots_txt",
+          "action_link",
+        ])
+        .optional()
+        .describe("List the skipped URLs for this reason only"),
       limit: z.number().int().min(1).max(2000).optional().describe("Skipped URLs to return (default 200)"),
       offset: z.number().int().min(0).optional().describe("Skipped URLs to skip, for paging"),
     }),
@@ -96,6 +115,7 @@ Use it when a page you expected is missing, then adjust crawlInstruction, includ
   server.addTool({
     name: "spidra_crawl_extract",
     annotations: { title: "Re-extract from a crawl", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    output: queuedOutput,
     description: `
 Run a new extraction over every page a finished crawl saved, without visiting the site again. Much cheaper than crawling again: only AI credits are charged. Returns a new "jobId"; check it with spidra_get_job (type "crawl"). The original crawl doesn't change.
 `,
@@ -117,7 +137,8 @@ Run a new extraction over every page a finished crawl saved, without visiting th
 
   server.addTool({
     name: "spidra_retry_crawl_page",
-    annotations: { title: "Redo one crawled page", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: { title: "Redo one crawled page", readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    output: retryCrawlPageOutput,
     description: `
 Run a crawl's extraction again on one saved page and return the new data. It doesn't visit the site, and the page's stored data is replaced. Use it when one or two pages came back empty or wrong. Get "pageId" from spidra_crawl_pages (each page's "id"). Only crawls with a transformInstruction or schema can be retried. Costs only the AI credits for that page.
 `,

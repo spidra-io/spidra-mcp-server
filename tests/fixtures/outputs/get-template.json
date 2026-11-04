@@ -1,0 +1,91 @@
+{
+ "tool": "spidra_get_template",
+ "args": {
+  "slug": "google-maps-leads"
+ },
+ "structuredContent": {
+  "slug": "google-maps-leads",
+  "title": "Google Maps leads",
+  "description": "Type a kind of business and the areas you care about. You get every place Google Maps lists for each search, with phone, website, rating, address and a link, in one table. Places that show up in more than one area appear once. Turn on \"Find emails and social links\" to also check each place's website for emails, phone numbers and social profiles; the Emails, Instagram, Facebook and LinkedIn columns are added to the table when it is on.",
+  "site": "Google Maps",
+  "inputs": [
+   {
+    "key": "query",
+    "label": "Business type",
+    "type": "text",
+    "required": true,
+    "example": "dentist"
+   },
+   {
+    "key": "areas",
+    "label": "Areas",
+    "type": "list",
+    "required": true,
+    "example": [
+     "Lekki, Lagos",
+     "Ikeja, Lagos"
+    ],
+    "help": "One per line. Each area is one search (1 credit).",
+    "maxItems": 25
+   },
+   {
+    "key": "pages",
+    "label": "Pages per area",
+    "type": "number",
+    "default": 1,
+    "example": 1,
+    "help": "Each page adds up to 20 more places and costs 1 credit. Up to 10.",
+    "min": 1,
+    "max": 10
+   },
+   {
+    "key": "findContacts",
+    "label": "Find emails and social links",
+    "type": "boolean",
+    "default": false,
+    "help": "Also visits each place's website and its contact page for emails, phone numbers and Facebook, Instagram, LinkedIn, X, TikTok and YouTube links. 1 credit per page loaded (up to 2 per website); pages that fail are free."
+   },
+   {
+    "key": "language",
+    "label": "Language",
+    "type": "language",
+    "default": "en",
+    "help": "The language Google Maps writes place details in.",
+    "options": [
+     "ab",
+     "aa",
+     "af",
+     "ak",
+     "tw"
+    ]
+   }
+  ],
+  "columns": [
+   {
+    "key": "title",
+    "label": "Name"
+   },
+   {
+    "key": "category",
+    "label": "Category"
+   },
+   {
+    "key": "phone",
+    "label": "Phone"
+   },
+   {
+    "key": "website",
+    "label": "Website"
+   },
+   {
+    "key": "emails",
+    "label": "Emails"
+   }
+  ],
+  "limits": [
+   "Google Maps shows up to 20 places per page of a search. Use more pages per area (up to 10, 200 places), or split a big city into neighbourhoods, to get more.",
+   "Google Maps shows price level only to signed-in visitors, so it is not included. Popular times come with place details (Google Maps place details) for some places.",
+   "With \"Find emails and social links\" on, each website and its contact page are checked (up to 2 pages per site, 1 credit per page loaded, pages that fail are free), for up to 200 websites per run. Only details written on those pages are found."
+  ]
+ }
+}

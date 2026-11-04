@@ -1,0 +1,50 @@
+{
+ "tool": "spidra_logs",
+ "args": {
+  "tool": "parse",
+  "limit": 2
+ },
+ "structuredContent": {
+  "total": 3,
+  "logs": [
+   {
+    "jobId": "b5ef49ac-fe31-4c74-b689-53f93eb48457",
+    "status": "completed",
+    "fileName": "1706.03762",
+    "sourceUrl": "https://arxiv.org/pdf/1706.03762",
+    "sourceType": "url",
+    "format": "PDF",
+    "mode": "auto",
+    "pageSelection": "1",
+    "totalPages": 15,
+    "pagesParsed": 1,
+    "ocrPages": 0,
+    "hasPrompt": false,
+    "creditsUsed": 1,
+    "latencyMs": 3094,
+    "channel": "api",
+    "error": null,
+    "createdAt": "2026-11-04T05:38:27.000Z"
+   },
+   {
+    "jobId": "2c45197f-dc7a-4a40-a06d-1af0e7f5a570",
+    "status": "completed",
+    "fileName": "1810.04805",
+    "sourceUrl": "https://arxiv.org/pdf/1810.04805",
+    "sourceType": "url",
+    "format": "PDF",
+    "mode": "auto",
+    "pageSelection": "1",
+    "totalPages": 16,
+    "pagesParsed": 1,
+    "ocrPages": 0,
+    "hasPrompt": false,
+    "creditsUsed": 1,
+    "latencyMs": 2194,
+    "channel": "api",
+    "error": null,
+    "createdAt": "2026-11-04T05:38:27.000Z"
+   }
+  ]
+ }
+}

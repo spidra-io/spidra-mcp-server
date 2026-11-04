@@ -1,0 +1,11 @@
+{
+ "tool": "spidra_crawl_extract",
+ "args": {
+  "jobId": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+  "transformInstruction": "Just the title"
+ },
+ "structuredContent": {
+  "jobId": "9646d573-fc7d-486d-b05b-adda66e1f1ad",
+  "next": "Queued. Check it with spidra_get_job {\"type\": \"crawl\", \"id\": \"9646d573-fc7d-486d-b05b-adda66e1f1ad\"}."
+ }
+}

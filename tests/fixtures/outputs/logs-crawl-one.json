@@ -1,0 +1,29 @@
+{
+ "tool": "spidra_logs",
+ "args": {
+  "tool": "crawl",
+  "id": "fa48e78c-1529-4641-a5c9-702b0eef9023"
+ },
+ "structuredContent": {
+  "id": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+  "base_url": "https://books.toscrape.com",
+  "crawl_instruction": "Individual book pages",
+  "transform_instruction": "Title and price",
+  "max_pages": 2,
+  "max_depth": null,
+  "include_paths": null,
+  "exclude_paths": null,
+  "allow_subdomains": 0,
+  "crawl_entire_domain": 0,
+  "ignore_query_params": 0,
+  "output_schema": null,
+  "webhook_url": null,
+  "status": "completed",
+  "created_at": "2026-11-04T05:36:04.000Z",
+  "updated_at": "2026-11-04T05:36:30.000Z",
+  "input_tokens": 1995,
+  "output_tokens": 39,
+  "credits_used": "4.00",
+  "pages_crawled": 2
+ }
+}

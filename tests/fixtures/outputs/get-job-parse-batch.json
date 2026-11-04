@@ -1,0 +1,65 @@
+{
+ "tool": "spidra_get_job",
+ "args": {
+  "type": "parse_batch",
+  "id": "c8f52555-c2a0-415d-9436-d080697f19fe",
+  "waitSeconds": 30
+ },
+ "structuredContent": {
+  "batchId": "c8f52555-c2a0-415d-9436-d080697f19fe",
+  "status": "completed",
+  "counts": {
+   "queued": 0,
+   "running": 0,
+   "completed": 2,
+   "failed": 0
+  },
+  "creditsUsed": 2,
+  "documents": [
+   {
+    "jobId": "2c45197f-dc7a-4a40-a06d-1af0e7f5a570",
+    "status": "completed",
+    "fileName": "1810.04805",
+    "sourceUrl": "https://arxiv.org/pdf/1810.04805",
+    "fileId": "f02b0292-b83a-499e-9b07-96d88e29e29d",
+    "format": "PDF",
+    "totalPages": 16,
+    "pagesParsed": 1,
+    "creditsUsed": 1,
+    "markdown": "## BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding\n\n### Jacob Devlin Ming-Wei Chang\n\n### Kenton Lee Kristina Toutanova\n\nGoogle AI Language *f*jacobdevlin,mingweichang,kentonl,kristout*g*@google.com\n\n### Abstract\n\nWe introduce a new language representa- tion model called **BERT**, which stands for **B**idirectional **E**ncoder **R**epresentations from **T**ransformers. Unlike recent language repre- sentation models (Peters et al.,2018a;Rad- ford et al.,2018), BERT is designed to pre- train deep bidirectional representations from unlabeled text by jointly conditi... [shortened for the fixture]",
+    "warnings": [],
+    "metadata": {
+     "fileName": "1810.04805",
+     "sourceUrl": "https://arxiv.org/pdf/1810.04805",
+     "format": "pdf",
+     "totalPages": 16,
+     "pagesParsed": 1,
+     "ocrPages": 0
+    },
+    "durationMs": 2194
+   },
+   {
+    "jobId": "b5ef49ac-fe31-4c74-b689-53f93eb48457",
+    "status": "completed",
+    "fileName": "1706.03762",
+    "sourceUrl": "https://arxiv.org/pdf/1706.03762",
+    "fileId": "6c0924cc-40ba-4c1f-b57d-d6886d35603d",
+    "format": "PDF",
+    "totalPages": 15,
+    "pagesParsed": 1,
+    "creditsUsed": 1,
+    "markdown": "### Provided proper attribution is provided, Google hereby grants permission to\n\nreproduce the tables and figures in this paper solely for use in journalistic or scholarly works.\n\n## Attention Is All You Need\n\n#### Ashish Vaswani\n\n*∗* **Noam Shazeer** *∗* **Niki Parmar** *∗* **Jakob Uszkoreit** *∗* Google Brain Google Brain Google Research Google Research avaswani@google.com noam@google.com nikip@google.com usz@google.com\n\n#### Llion Jones\n\n*∗* **Aidan N. Gomez** *∗ †* **Łukasz Kaiser** *∗* Google Research University of Toronto Google Brain llion@google.com aidan@cs.toronto.edu lukaszkaiser@go... [shortened for the fixture]",
+    "warnings": [],
+    "metadata": {
+     "fileName": "1706.03762",
+     "sourceUrl": "https://arxiv.org/pdf/1706.03762",
+     "format": "pdf",
+     "totalPages": 15,
+     "pagesParsed": 1,
+     "ocrPages": 0
+    },
+    "durationMs": 3094
+   }
+  ]
+ }
+}

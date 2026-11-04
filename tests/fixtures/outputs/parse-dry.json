@@ -1,0 +1,16 @@
+{
+ "tool": "spidra_parse",
+ "args": {
+  "url": "https://arxiv.org/pdf/1706.03762",
+  "dryRun": true
+ },
+ "structuredContent": {
+  "status": "estimate",
+  "fileId": "f6b31af6-fc49-41dd-9d3b-c929e0947e53",
+  "fileName": "1706.03762",
+  "format": "PDF",
+  "totalPages": 15,
+  "pagesToParse": 15,
+  "credits": 15
+ }
+}

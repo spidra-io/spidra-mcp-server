@@ -1,0 +1,32 @@
+{
+ "tool": "spidra_run_preset",
+ "args": {
+  "presetId": "24d67e4d-8328-49e0-89c8-8c068dc92106"
+ },
+ "structuredContent": {
+  "links": [
+   {
+    "url": "https://books.toscrape.com/",
+    "title": "Books to Scrape"
+   },
+   {
+    "url": "https://books.toscrape.com/catalogue/category/books_1/index.html",
+    "title": "Books"
+   },
+   {
+    "url": "https://books.toscrape.com/catalogue/category/books/travel_2/index.html",
+    "title": "Travel"
+   }
+  ],
+  "total": 124,
+  "scanned": 124,
+  "sources": {
+   "sitemap": 0,
+   "pages": 124
+  },
+  "creditsUsed": 1,
+  "durationMs": 3872,
+  "presetId": "24d67e4d-8328-49e0-89c8-8c068dc92106",
+  "tool": "map"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "tool": "spidra_crawl_report",
+ "args": {
+  "jobId": "fa48e78c-1529-4641-a5c9-702b0eef9023"
+ },
+ "structuredContent": {
+  "status": "success",
+  "report": {
+   "understoodAs": "Individual book detail pages.",
+   "navigationPages": 1,
+   "skippedTotal": 0,
+   "skipped": [],
+   "skippedUrls": [],
+   "skippedUrlsTotal": 0
+  }
+ }
+}

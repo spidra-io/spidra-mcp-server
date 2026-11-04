@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SpidraClient, TemplateDetail, TemplateRun } from "spidra";
 import { getClient, reply, run, type Server } from "../shared.js";
+import { findTemplatesOutput, getTemplateOutput, runTemplateOutput } from "../outputs.js";
 
 // Template definitions change rarely; cache columns per slug and version so row trimming costs one lookup.
 const columnsCache = new Map<string, string[]>();
@@ -75,8 +76,10 @@ export function registerTemplateTools(server: Server): void {
   server.addTool({
     name: "spidra_find_templates",
     annotations: { title: "Find ready-made templates", readOnlyHint: true, openWorldHint: false },
+    output: findTemplatesOutput,
     description: `
 Find ready-made templates: jobs that turn a few inputs into a table of results, such as Google Maps leads with emails, Amazon keyword rank, LinkedIn or Indeed jobs, YouTube transcripts, Zillow homes or Google Flights prices. Free.
+Newer sites too: Polymarket and Kalshi odds, CoinMarketCap crypto data, Crunchbase News funding rounds, Google Business profiles and Google Search results.
 
 **Use it first** when the task is a common data job on a well-known site. A template is usually cheaper and more complete than writing scrapes yourself.
 **Then:** spidra_get_template for its inputs, and spidra_run_template to run it.
@@ -116,6 +119,7 @@ Filter with "q" (words, e.g. "reviews"), "site" (e.g. "google-maps", "amazon") o
   server.addTool({
     name: "spidra_get_template",
     annotations: { title: "Get a template's inputs", readOnlyHint: true, openWorldHint: false },
+    output: getTemplateOutput,
     description: `
 Get what a template needs and what it returns: its inputs (send them by "key" to spidra_run_template; "required" ones must be set, others have defaults), its columns, and its limits in plain words. Free.
 `,
@@ -141,9 +145,10 @@ Get what a template needs and what it returns: its inputs (send them by "key" to
 
   server.addTool({
     name: "spidra_run_template",
-    annotations: { title: "Run a template", readOnlyHint: true, openWorldHint: true },
+    annotations: { title: "Run a template", readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    output: runTemplateOutput,
     description: `
-Run a template and get its rows. Most runs finish in this call (it waits up to about 45 seconds). A longer one returns a "runId"; check it with spidra_get_job (type "template_run") every 10 to 15 seconds until "status" isn't "running".
+Run a template and get its rows. Most runs finish in this call (it waits up to about 45 seconds). A longer one returns a "runId"; check it with spidra_get_job (type "template_run", with "waitSeconds" to wait for it) until "status" isn't "running".
 
 - Get the inputs from spidra_get_template first. Send them in "inputs" by key.
 - "estimate": true checks the inputs and returns the credits it should cost, for free, without running.
@@ -171,7 +176,7 @@ Run a template and get its rows. Most runs finish in this call (it waits up to a
             runId: started.runId,
             status: started.status,
             ...(started.progress ? { progress: started.progress } : {}),
-            next: `Still running. Check it with spidra_get_job {"type": "template_run", "id": "${started.runId}"} every 10 to 15 seconds.`,
+            next: `Still running. Check it with spidra_get_job {"type": "template_run", "id": "${started.runId}", "waitSeconds": 30}.`,
           });
         }
         return reply(await shapeRun(client, started, args));

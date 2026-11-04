@@ -1,0 +1,48 @@
+{
+ "tool": "spidra_search",
+ "args": {
+  "query": "python asyncio tutorial",
+  "limit": 3
+ },
+ "structuredContent": {
+  "success": true,
+  "data": {
+   "web": [
+    {
+     "title": "Python's asyncio: A Hands-On Walkthrough",
+     "url": "https://realpython.com/async-io-python/",
+     "description": "Oct 24, 2026 · In this tutorial, you'll learn how Python asyncio works, how to define and run coroutines, and when to use asynchronous programming for Quiz",
+     "position": 1
+    },
+    {
+     "title": "A conceptual overview of asyncio — Python 3.15.2 ...",
+     "url": "https://docs.python.org/3/howto/a-conceptual-overview-of-asyncio.html",
+     "description": "In part 1, we'll cover the main, high-level building blocks of asyncio : the event loop, coroutine functions, coroutine objects, tasks, and await . Event loop¶.",
+     "position": 2
+    },
+    {
+     "title": "Python Tutorial: AsyncIO - YouTube",
+     "url": "https://www.youtube.com/watch?v=oAkLSJNr5zY",
+     "description": "Aug 20, 2025 · In this video, we'll be learning all about AsyncIO in Python and how to write asynchronous code using the async/await syntax.",
+     "position": 3
+    }
+   ],
+   "extras": {
+    "relatedSearches": [
+     "python asyncio example",
+     "python asyncio vs threading",
+     "python concurrency with asyncio",
+     "python async io",
+     "python asyncio gather"
+    ]
+   },
+   "nextPageTokens": {
+    "web": "v1.kpnjESBgjsVHdRV3pHmGJnkDN8v8aRNZ8lENF1ScDxwyMsx-zR45BafeQE31LmJWbbeKvEbkZQFf_r7qNOm43fIjCeCnDYlruKbUuwrVDuUDjspzGztQy4jvkhn0ZuNuKaDolYkw0yT7esW5HENgfYaOtKW1Nzhe5tFILwfbV23nkQg"
+   }
+  },
+  "stats": {
+   "durationMs": 1559
+  },
+  "logUuid": "026fdc64-8531-45b7-9f2f-dbb6472b6715"
+ }
+}

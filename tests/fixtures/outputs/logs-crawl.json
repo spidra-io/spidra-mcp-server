@@ -1,0 +1,70 @@
+{
+ "tool": "spidra_logs",
+ "args": {
+  "tool": "crawl",
+  "limit": 2
+ },
+ "structuredContent": {
+  "jobs": [
+   {
+    "id": "36346807-0532-453a-b9fb-3e98d7782d56",
+    "user_uuid": "00000000-0000-4000-8000-000000000000",
+    "source_job_id": null,
+    "base_url": "https://quotes.toscrape.com",
+    "crawl_instruction": "Author pages",
+    "transform_instruction": null,
+    "output_schema": null,
+    "max_pages": 3,
+    "include_paths": null,
+    "exclude_paths": null,
+    "max_depth": null,
+    "allow_subdomains": 0,
+    "crawl_entire_domain": 0,
+    "ignore_query_params": 0,
+    "webhook_url": null,
+    "status": "cancelled",
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "credits_used": "0.00",
+    "created_at": "2026-11-04T05:38:36.000Z",
+    "updated_at": "2026-11-04T05:38:36.000Z",
+    "use_proxy": 0,
+    "proxy_billing": "none",
+    "proxy_bandwidth_mb": null,
+    "pages_crawled": 0,
+    "site_title": null
+   },
+   {
+    "id": "9646d573-fc7d-486d-b05b-adda66e1f1ad",
+    "user_uuid": "00000000-0000-4000-8000-000000000000",
+    "source_job_id": "fa48e78c-1529-4641-a5c9-702b0eef9023",
+    "base_url": "https://books.toscrape.com",
+    "crawl_instruction": null,
+    "transform_instruction": "Just the title",
+    "output_schema": null,
+    "max_pages": 2,
+    "include_paths": null,
+    "exclude_paths": null,
+    "max_depth": null,
+    "allow_subdomains": 0,
+    "crawl_entire_domain": 0,
+    "ignore_query_params": 0,
+    "webhook_url": null,
+    "status": "completed",
+    "input_tokens": 1356,
+    "output_tokens": 10,
+    "credits_used": "1.00",
+    "created_at": "2026-11-04T05:36:30.000Z",
+    "updated_at": "2026-11-04T05:36:32.000Z",
+    "use_proxy": 0,
+    "proxy_billing": "none",
+    "proxy_bandwidth_mb": null,
+    "pages_crawled": 2,
+    "site_title": "A Light in the Attic | Books to Scrape - Sandbox"
+   }
+  ],
+  "total": 13,
+  "page": 1,
+  "totalPages": 7
+ }
+}

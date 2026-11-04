@@ -1,0 +1,40 @@
+{
+ "tool": "spidra_map",
+ "args": {
+  "url": "https://books.toscrape.com",
+  "limit": 5
+ },
+ "structuredContent": {
+  "status": "success",
+  "links": [
+   {
+    "url": "https://books.toscrape.com/",
+    "title": "Books to Scrape"
+   },
+   {
+    "url": "https://books.toscrape.com/catalogue/category/books_1/index.html",
+    "title": "Books"
+   },
+   {
+    "url": "https://books.toscrape.com/catalogue/category/books/travel_2/index.html",
+    "title": "Travel"
+   },
+   {
+    "url": "https://books.toscrape.com/catalogue/category/books/mystery_3/index.html",
+    "title": "Mystery"
+   },
+   {
+    "url": "https://books.toscrape.com/catalogue/category/books/historical-fiction_4/index.html",
+    "title": "Historical Fiction"
+   }
+  ],
+  "total": 124,
+  "scanned": 124,
+  "sources": {
+   "sitemap": 0,
+   "pages": 124
+  },
+  "creditsUsed": 1,
+  "durationMs": 4293
+ }
+}

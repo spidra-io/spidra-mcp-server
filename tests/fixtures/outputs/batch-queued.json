@@ -1,0 +1,14 @@
+{
+ "tool": "spidra_batch_scrape",
+ "args": {
+  "urls": [
+   "https://quotes.toscrape.com/page/1/",
+   "https://this-domain-does-not-exist-spidra.example/"
+  ]
+ },
+ "structuredContent": {
+  "batchId": "5c0e5653-4ab7-4d11-b3b3-72f79a7c3412",
+  "total": 2,
+  "next": "Queued. Check it with spidra_get_job {\"type\": \"batch\", \"id\": \"5c0e5653-4ab7-4d11-b3b3-72f79a7c3412\", \"waitSeconds\": 30} until status is completed."
+ }
+}
