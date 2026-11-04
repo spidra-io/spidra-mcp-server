@@ -69,6 +69,7 @@ const STYLE = `
   .cell div > span { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
   .note { margin-top: 16px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
   .note strong { color: var(--ink); font-weight: 500; }
+  .note a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
   .body > .note:first-child { margin-top: 0; }
   .note.local { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: #fff8eb; border: 0.5px solid #f5d9a8; color: #7a4a0c; }
   .actions { display: flex; gap: 10px; margin-top: 20px; }
@@ -180,7 +181,7 @@ export function renderConsentPage(data: ConsentPageData): string {
           <div class="cell"><span class="dot"></span><div><strong>Manage your saved work</strong><span>Run, save and delete templates, presets and monitors</span></div></div>
           <div class="cell"><span class="dot"></span><div><strong>See your account</strong><span>Your plan, credit balance and usage history</span></div></div>
         </div>
-        <p class="note"><strong>Only approve if you started this.</strong> It can spend your credits until you disconnect it.</p>
+        <p class="note"><strong>Only approve if you started this.</strong> It can spend your credits until you disconnect it in <a href="https://app.spidra.io/dashboard/api-keys" target="_blank" rel="noopener">Connected apps</a>.</p>
         ${data.loopbackOnly ? `<p class="note local">This app signs in through your own computer (${esc(data.redirectHost)}). Approve only if you just connected it from Claude Code, Cursor, VS Code or another app you trust.</p>` : ""}
         <form class="actions" method="POST" action="/oauth/consent">
           <input type="hidden" name="transaction" value="${esc(data.transaction)}">

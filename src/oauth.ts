@@ -506,18 +506,23 @@ function parseCookies(header: string | undefined): Record<string, string> {
   return out;
 }
 
-async function upstreamToken(cfg: OAuthConfig, params: Record<string, string>): Promise<{ status: number; body: Record<string, unknown> }> {
+/** POST to the backend's /oauth/token or /oauth/revoke with this server's client credentials (HTTP Basic). */
+async function upstreamToken(
+  cfg: OAuthConfig,
+  params: Record<string, string>,
+  endpoint: "token" | "revoke" = "token"
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const basic = Buffer.from(`${encodeURIComponent(cfg.upstreamClientId)}:${encodeURIComponent(cfg.upstreamClientSecret)}`).toString("base64");
   let response: Response;
   try {
-    response = await fetch(`${cfg.upstreamApiUrl}/oauth/token`, {
+    response = await fetch(`${cfg.upstreamApiUrl}/oauth/${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${basic}` },
       body: new URLSearchParams(params),
       signal: AbortSignal.timeout(10_000),
     });
   } catch (err) {
-    logger.error(`OAuth: the backend's /oauth/token can't be reached: ${(err as Error).message}`);
+    logger.error(`OAuth: the backend's /oauth/${endpoint} can't be reached: ${(err as Error).message}`);
     throw unavailable();
   }
   const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
@@ -585,6 +590,8 @@ export class OAuthProvider {
       authorization_endpoint: `${base}/oauth/authorize`,
       token_endpoint: `${base}/oauth/token`,
       registration_endpoint: `${base}/oauth/register`,
+      revocation_endpoint: `${base}/oauth/revoke`,
+      revocation_endpoint_auth_methods_supported: ["none", "client_secret_basic", "client_secret_post"],
       response_types_supported: ["code"],
       response_modes_supported: ["query"],
       grant_types_supported: ["authorization_code", "refresh_token"],
@@ -663,6 +670,12 @@ export class OAuthProvider {
         if (method === "OPTIONS") return this.preflight(res), true;
         if (method !== "POST") return this.methodNotAllowed(res), true;
         await this.token(req, res);
+        return true;
+      }
+      if (path === "/oauth/revoke") {
+        if (method === "OPTIONS") return this.preflight(res), true;
+        if (method !== "POST") return this.methodNotAllowed(res), true;
+        await this.revoke(req, res);
         return true;
       }
     } catch (err) {
@@ -864,8 +877,8 @@ export class OAuthProvider {
 
   // -- token endpoint ---------------------------------------------------------
 
-  private async token(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const form = await readForm(req);
+  /** Client authentication for /token and /revoke: HTTP Basic first, then client_id and client_secret in the form. */
+  private async authenticateClient(req: IncomingMessage, form: Record<string, string>): Promise<Client> {
     const basic = String(req.headers.authorization ?? "");
     let clientId = form.client_id;
     let clientSecret = form.client_secret;
@@ -889,6 +902,12 @@ export class OAuthProvider {
         throw new OAuthError("invalid_client", "Client authentication failed.", 401);
       }
     }
+    return client;
+  }
+
+  private async token(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const form = await readForm(req);
+    const client = await this.authenticateClient(req, form);
     if (form.resource && !this.isOurResource(form.resource)) {
       throw new OAuthError("invalid_target", `Tokens here are only for ${this.cfg.resource}.`);
     }
@@ -905,6 +924,11 @@ export class OAuthProvider {
         grant_type: "authorization_code",
         code: code.u,
         redirect_uri: `${this.cfg.baseUrl}/oauth/callback`,
+        // Which app this is, for the Connected apps list in the dashboard. Sent server to server, so the browser
+        // can't change it. A metadata-document client is named by its URL; a registered one by a hash of its id,
+        // which is long and means nothing to a person.
+        mcp_client_id: client.clientId.startsWith("https://") ? client.clientId : `dcr:${sha256(client.clientId).slice(0, 22)}`,
+        mcp_client_name: client.name.slice(0, 120),
       });
       this.sendTokens(res, client, upstream);
       return;
@@ -919,6 +943,58 @@ export class OAuthProvider {
     }
 
     throw new OAuthError("unsupported_grant_type", "Use authorization_code or refresh_token.");
+  }
+
+  // -- revocation (RFC 7009) -----------------------------------------------------
+
+  /**
+   * Revokes one of our refresh or access tokens by forwarding the backend token inside it to the backend's
+   * /oauth/revoke. Revoking a refresh token ends the whole connection: it and every token rotated from it stop
+   * working. The backend's access tokens are stateless, so a revoked access token runs out on its own (15 minutes).
+   *
+   * Answers 200 for any token we can't open (unknown, expired, another client's, or garbage), as RFC 7009 asks, so
+   * the endpoint can't be used to probe tokens. Client credentials are optional: holding the token is enough to
+   * give it up, but credentials that are sent must be right. 503 only when the backend can't be reached, so the
+   * client can try again instead of believing the token is dead.
+   */
+  private async revoke(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const form = await readForm(req);
+    const hasCredentials = !!form.client_id || String(req.headers.authorization ?? "").toLowerCase().startsWith("basic ");
+    const client = hasCredentials ? await this.authenticateClient(req, form) : undefined;
+    if (!form.token) throw new OAuthError("invalid_request", "token is required.");
+    const ok = () => sendJson(res, 200, {}, { "Access-Control-Allow-Origin": "*" });
+
+    const hint = form.token_type_hint;
+    const asRefresh = () => this.sealer.open<{ u: string; c: string }>("refresh", form.token);
+    const asAccess = () => this.sealer.open<{ u: string; c: string; aud: string }>("access", form.token);
+    let upstream: string | undefined;
+    if (hint === "access_token") {
+      const a = asAccess();
+      if (a && (!client || a.c === client.clientId)) upstream = a.u;
+      else {
+        const r = asRefresh();
+        if (r && (!client || r.c === sha256(client.clientId))) upstream = r.u;
+      }
+    } else {
+      const r = asRefresh();
+      if (r && (!client || r.c === sha256(client.clientId))) upstream = r.u;
+      else {
+        const a = asAccess();
+        if (a && (!client || a.c === client.clientId)) upstream = a.u;
+      }
+    }
+    if (typeof upstream !== "string" || !upstream) return ok();
+
+    const result = await upstreamToken(this.cfg, { token: upstream }, "revoke");
+    if (result.status === 429 || result.status >= 500) {
+      logger.error(`OAuth: the backend's /oauth/revoke answered HTTP ${result.status}`);
+      throw unavailable();
+    }
+    if (result.status === 401) {
+      logger.error("OAuth: the backend refused this server's client credentials on /oauth/revoke.");
+      throw new OAuthError("server_error", "Revocation is misconfigured on the server. Try again later.", 500);
+    }
+    ok();
   }
 
   private sendTokens(res: ServerResponse, client: Client, upstream: { status: number; body: Record<string, unknown> }): void {

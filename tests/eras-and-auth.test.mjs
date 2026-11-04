@@ -29,6 +29,8 @@ const seenAuth = [];
 let oauthDown = 0; // when set, /api/oauth/* answers with this status (a backend blip)
 const upstreamCodes = new Map();
 const upstreamRefresh = new Map();
+const revokedUpstream = []; // tokens the MCP server forwarded to /api/oauth/revoke
+const codeExchanges = []; // the form of each authorization_code exchange, to check the app's identity is sent
 let counter = 0;
 
 const backend = createServer((req, res) => {
@@ -57,6 +59,7 @@ const backend = createServer((req, res) => {
       if (req.headers.authorization !== expected) return send(401, { error: "invalid_client" });
       const form = new URLSearchParams(body);
       if (form.get("grant_type") === "authorization_code") {
+        codeExchanges.push(Object.fromEntries(form));
         const redirect = upstreamCodes.get(form.get("code"));
         upstreamCodes.delete(form.get("code")); // single use, like the real one
         if (!redirect || redirect !== form.get("redirect_uri")) return send(400, { error: "invalid_grant" });
@@ -67,6 +70,14 @@ const backend = createServer((req, res) => {
       const n = ++counter;
       upstreamRefresh.set(`up-rt-${n}`, true);
       return send(200, { access_token: `up-at-${n}`, refresh_token: `up-rt-${n}`, expires_in: 3600, token_type: "Bearer" });
+    }
+    if (url.pathname === "/api/oauth/revoke") {
+      const expected = "Basic " + Buffer.from(`${UPSTREAM_CLIENT_ID}:${UPSTREAM_SECRET}`).toString("base64");
+      if (req.headers.authorization !== expected) return send(401, { error: "invalid_client" });
+      const token = new URLSearchParams(body).get("token");
+      revokedUpstream.push(token);
+      upstreamRefresh.delete(token);
+      return send(200, {});
     }
     if (url.pathname === "/api/oauth/introspect") {
       if (req.headers.authorization !== `Bearer ${UPSTREAM_SECRET}`) return send(401, { active: false });
@@ -726,4 +737,56 @@ test("oauth: a Client ID Metadata Document client (Claude Code's real one) gets 
   const wrongRedirect = new URL(url);
   wrongRedirect.searchParams.set("redirect_uri", "https://claude.ai/somewhere-else");
   assert.equal((await fetch(wrongRedirect, { redirect: "manual" })).status, 400);
+});
+
+test("oauth: revoking a refresh token ends the connection, and an unknown token still gets 200", async () => {
+  const { base } = oauthServer;
+  const as = await (await fetch(`${base}/.well-known/oauth-authorization-server`)).json();
+  assert.equal(as.revocation_endpoint, `${base}/oauth/revoke`);
+
+  const { reg, verifier, url } = await registerAndAuthorize(base);
+  const { redirect } = await approveInBrowser(url);
+  const tokens = await (
+    await fetch(`${base}/oauth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "authorization_code", code: redirect.searchParams.get("code"), code_verifier: verifier, client_id: reg.client_id, redirect_uri: "http://localhost:9000/cb" }),
+    })
+  ).json();
+  assert.ok(tokens.refresh_token);
+  const exchange = codeExchanges.at(-1);
+  assert.equal(exchange.mcp_client_name, "Manual", "the app's name is sent to the backend for Connected apps");
+  assert.match(exchange.mcp_client_id, /^dcr:[A-Za-z0-9_-]{22}$/, "a registered client is named by a short hash, not its sealed id");
+
+  const revoke = body => fetch(`${base}/oauth/revoke`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(body) });
+  const res = await revoke({ token: tokens.refresh_token, token_type_hint: "refresh_token", client_id: reg.client_id });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {});
+  assert.match(revokedUpstream.at(-1), /^up-rt-\d+$/, "the backend's refresh token was forwarded, not ours");
+
+  const refreshed = await fetch(`${base}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: reg.client_id }),
+  });
+  assert.equal((await refreshed.json()).error, "invalid_grant");
+
+  // An access token works too (no client credentials needed), and forwards the backend's access token.
+  assert.equal((await revoke({ token: tokens.access_token })).status, 200);
+  assert.match(revokedUpstream.at(-1), /^up-at-\d+$/);
+
+  const forwarded = revokedUpstream.length;
+  for (const token of ["not-a-token", "A".repeat(80), tokens.refresh_token.slice(0, -2) + "xx"]) {
+    const unknown = await revoke({ token });
+    assert.equal(unknown.status, 200, token);
+  }
+  assert.equal(revokedUpstream.length, forwarded, "nothing is sent upstream for a token we can't open");
+
+  // Another client's token is left alone (still 200), and a wrong secret is refused.
+  const other = await registerAndAuthorize(base, { secretMethod: "client_secret_post" });
+  assert.equal((await revoke({ token: tokens.access_token, client_id: other.reg.client_id, client_secret: other.reg.client_secret })).status, 200);
+  assert.equal(revokedUpstream.length, forwarded);
+  const wrong = await revoke({ token: tokens.access_token, client_id: other.reg.client_id, client_secret: "nope" });
+  assert.equal(wrong.status, 401);
+  assert.equal((await revoke({})).status, 400, "token is required");
 });
