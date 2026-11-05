@@ -26,7 +26,7 @@ export const INSTRUCTIONS = [
   "- Many pages of one kind on a site, URLs unknown: spidra_crawl.",
   "- A PDF, Word, Excel or PowerPoint file: spidra_parse.",
   "- A common job on a well-known site (Google Maps leads, Amazon products or rank, LinkedIn or Indeed jobs, YouTube, Zillow, flights): spidra_find_templates first, then spidra_run_template.",
-  "  Newer ones too: Polymarket and Kalshi odds, CoinMarketCap prices, Crunchbase News funding rounds, Google Business profiles and Google Search results.",
+  "  Sites and templates are added all the time; spidra_find_templates always has the current list.",
   "- Keep an eye on something over time: spidra_create_monitor.",
   "Tools that don't wait to the end return an id; check it with spidra_get_job and don't start the job again.",
   "Everything costs credits (1 per page, more with AI extraction), so prefer small limits and check spidra_account before big jobs. Failed pages are free.",

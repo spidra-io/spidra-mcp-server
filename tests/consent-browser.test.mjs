@@ -78,7 +78,7 @@ before(async () => {
     env: {
       ...process.env,
       SPIDRA_API_KEY: "",
-      HTTP_STREAMABLE_SERVER: "true",
+      HTTP_STREAMABLE_SERVER: "true", MCP_OPENAI_EGRESS_URL: "off",
       PORT: String(port),
       HOST: "127.0.0.1",
       SPIDRA_API_URL: `http://127.0.0.1:${backend.address().port}/api`,

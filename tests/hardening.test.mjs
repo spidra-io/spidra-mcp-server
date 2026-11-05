@@ -65,7 +65,7 @@ async function freePort() {
 async function startHttp(env) {
   const port = await freePort();
   const child = spawn(process.execPath, [SERVER_ENTRY], {
-    env: { ...process.env, SPIDRA_API_KEY: "", HTTP_STREAMABLE_SERVER: "true", PORT: String(port), HOST: "127.0.0.1", SPIDRA_API_URL: apiUrl, ...env },
+    env: { ...process.env, SPIDRA_API_KEY: "", HTTP_STREAMABLE_SERVER: "true", MCP_OPENAI_EGRESS_URL: "off", PORT: String(port), HOST: "127.0.0.1", SPIDRA_API_URL: apiUrl, ...env },
     stdio: ["ignore", "ignore", "inherit"],
   });
   children.push(child);
@@ -185,4 +185,45 @@ test("M7: anonymous traffic is limited per IP, and an anonymous body isn't read"
   assert.equal((await register()).status, 400);
   assert.equal((await register()).status, 400);
   assert.equal((await register()).status, 429);
+});
+
+// A stand-in for openai.com/chatgpt-connectors.json, in the file's real shape.
+const openAiFile = createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ creationTime: "2026-10-27T18:18:51.926871", prefixes: [{ ipv4Prefix: "104.210.139.192/28" }, { ipv4Prefix: "12.12.47.194/32" }] }));
+});
+
+test("AI platforms' egress IPs get their own, larger (but still capped) buckets; a forged X-Forwarded-For doesn't", async () => {
+  await new Promise(r => openAiFile.listen(0, "127.0.0.1", r));
+  const { base } = await startHttp({
+    MCP_RATE_ANONYMOUS: "2",
+    MCP_RATE_SIGN_IN: "2",
+    MCP_RATE_PLATFORM_ANONYMOUS: "5",
+    MCP_RATE_PLATFORM_SIGN_IN: "4",
+    MCP_OPENAI_EGRESS_URL: `http://127.0.0.1:${openAiFile.address().port}/chatgpt-connectors.json`,
+    MCP_PUBLIC_URL: "http://127.0.0.1:1",
+    MCP_OAUTH_CLIENT_ID: "x",
+    MCP_OAUTH_CLIENT_SECRET: "y",
+  });
+  await new Promise(r => setTimeout(r, 500)); // the ranges file loads at startup
+  const post = (headers) =>
+    fetch(`${base}/mcp`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers }, body: "{}" });
+  const statuses = async (n, headers) => { const out = []; for (let i = 0; i < n; i++) out.push((await post(headers)).status); return out; };
+  // Anthropic's two published ranges, 160.79.104.0/21 and 153.61.208.0/20: five pass, the sixth is limited.
+  assert.deepEqual(await statuses(6, { "CF-Connecting-IP": "160.79.111.254" }), [401, 401, 401, 401, 401, 429]);
+  assert.deepEqual(await statuses(5, { "CF-Connecting-IP": "153.61.223.1" }), [401, 401, 401, 401, 401]);
+  // OpenAI's ranges come from its file.
+  assert.deepEqual(await statuses(5, { "CF-Connecting-IP": "104.210.139.200" }), [401, 401, 401, 401, 401]);
+  assert.deepEqual(await statuses(5, { "CF-Connecting-IP": "12.12.47.194" }), [401, 401, 401, 401, 401]);
+  // Just outside each range is an ordinary caller.
+  assert.deepEqual(await statuses(3, { "CF-Connecting-IP": "160.79.112.1" }), [401, 401, 429]);
+  assert.deepEqual(await statuses(3, { "CF-Connecting-IP": "153.61.224.1" }), [401, 401, 429]);
+  assert.deepEqual(await statuses(3, { "CF-Connecting-IP": "104.210.139.208" }), [401, 401, 429]);
+  // X-Forwarded-For alone can't claim to be a platform.
+  assert.deepEqual(await statuses(3, { "X-Forwarded-For": "160.79.105.7" }), [401, 401, 429]);
+  // Sign-in pages from a platform get their own bucket too.
+  const register = () => fetch(`${base}/oauth/register`, { method: "POST", headers: { "Content-Type": "application/json", "CF-Connecting-IP": "160.79.104.20" }, body: "{}" });
+  const reg = []; for (let i = 0; i < 5; i++) reg.push((await register()).status);
+  assert.deepEqual(reg, [400, 400, 400, 400, 429]);
+  openAiFile.close();
 });

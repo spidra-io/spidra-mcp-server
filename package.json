@@ -1,6 +1,6 @@
 {
   "name": "spidra-mcp",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Official Spidra MCP server: web search, scraping, crawling, document parsing, templates and monitors for AI agents",
   "keywords": [
     "spidra",

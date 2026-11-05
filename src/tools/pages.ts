@@ -15,7 +15,7 @@ Read one known URL and get its content as Markdown, or the data you describe as 
 
 - No "prompt" or "schema": the page as Markdown.
 - "prompt": what you want, in plain words; the AI picks the shape. Add "schema" for exact fields and types (null where the page has nothing).
-- Popular sites (Amazon, Google Maps, LinkedIn, YouTube, Zillow, Indeed and others): with "output": "json" and no prompt, "content" is the page's data in named fields, no AI needed. Otherwise that data is in "structuredData". The same goes for Polymarket, Kalshi, CoinMarketCap, Crunchbase News, Google Business profiles and Google Search result pages.
+- Popular sites (Amazon, Google Maps, LinkedIn, YouTube, Zillow, Indeed and others): with "output": "json" and no prompt, "content" is the page's data in named fields, no AI needed. Otherwise that data is in "structuredData". The list of supported sites keeps growing.
 - "actions" runs browser steps first (click, type, scroll, forEach to go through a list); "instruction" does one task described in plain words instead. Never both. Steps run once and are never retried automatically, since a step like a form submission has effects.
 - If the result has "lowContent": true, the page came back nearly empty, usually because the site blocks automated visits. Call again with "useProxy": true.
 

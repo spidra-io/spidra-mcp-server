@@ -13,6 +13,7 @@ import { localhostHostValidation, localhostOriginValidation, toNodeHandler } fro
 import { buildServer, VERSION } from "./server.js";
 import { OAuthProvider, oauthConfigFromEnv } from "./oauth.js";
 import { logger } from "./logger.js";
+import { platformOf, startEgressRefresh, type Platform } from "./egress.js";
 
 // A parse request can carry a 10 MB file as base64 (about 14 MB of JSON). The SDK's default is 4 MB. Without
 // credentials there's no reason for a big body, so those get 1 MB.
@@ -25,6 +26,10 @@ const LIMITS = {
   anonymous: Number(process.env.MCP_RATE_ANONYMOUS || 60),
   authenticated: Number(process.env.MCP_RATE_AUTHENTICATED || 600),
   signIn: Number(process.env.MCP_RATE_SIGN_IN || 30),
+  // AI platforms that call from their own servers (claude.ai and the Claude apps, ChatGPT) reach us from a few
+  // addresses shared by all their users, so those addresses get buckets sized for that, still capped. egress.ts.
+  platformAnonymous: Number(process.env.MCP_RATE_PLATFORM_ANONYMOUS || 3000),
+  platformSignIn: Number(process.env.MCP_RATE_PLATFORM_SIGN_IN || 600),
 };
 
 /** A fixed one-minute window per key. In memory, which is right for one process; nginx can add more in front. */
@@ -47,17 +52,21 @@ class RateLimiter {
 }
 
 /**
- * The caller's IP. Behind the hosted proxy chain (Cloudflare, nginx, the backend's proxy) the socket is the proxy,
- * so use the edge's header. A spoofed header only lets someone pick their own rate-limit bucket.
+ * The caller's IP and which AI platform it belongs to, if any. Behind the hosted proxy chain (Cloudflare, nginx, the
+ * backend's proxy) the socket is the proxy, so the edge's header is used; a spoofed header only picks a bucket.
+ * Only Cloudflare's cf-connecting-ip (which Cloudflare sets and a client can't override through it) or the socket
+ * itself can mark a caller as a platform; a forged X-Forwarded-For can't. A forged cf-connecting-ip sent straight to
+ * the origin only reaches the capped platform bucket.
  */
-function clientIp(req: IncomingMessage, behindProxy: boolean): string {
+function callerAddress(req: IncomingMessage, behindProxy: boolean): { ip: string; platform?: Platform } {
   if (behindProxy) {
     const cf = req.headers["cf-connecting-ip"];
-    if (typeof cf === "string" && cf) return cf;
+    if (typeof cf === "string" && cf) return { ip: cf, platform: platformOf(cf) };
     const xff = req.headers["x-forwarded-for"];
-    if (typeof xff === "string" && xff) return xff.split(",")[0].trim();
+    if (typeof xff === "string" && xff) return { ip: xff.split(",")[0].trim() };
   }
-  return req.socket.remoteAddress ?? "unknown";
+  const ip = req.socket.remoteAddress ?? "unknown";
+  return { ip, platform: platformOf(ip) };
 }
 
 const PROTOCOL_VERSION_KEY = "io.modelcontextprotocol/protocolVersion";
@@ -221,6 +230,7 @@ export function startHttpServer({ port, host }: HttpServerOptions) {
   }
 
   const limiter = new RateLimiter();
+  const stopEgressRefresh = startEgressRefresh();
   const behindProxy = Boolean(process.env.MCP_PUBLIC_URL);
   const tooMany = (res: ServerResponse, retryAfter: number) =>
     jsonRpcError(res, 429, -32000, `Too many requests. Try again in ${retryAfter} seconds.`, { "Retry-After": String(retryAfter) });
@@ -229,11 +239,13 @@ export function startHttpServer({ port, host }: HttpServerOptions) {
     // Who's calling comes from the headers alone, so a request without credentials is answered before its body is
     // read (MCP_SECOND_REVIEW M7).
     const caller = resolveCaller(req);
-    const ip = clientIp(req, behindProxy);
+    const from = callerAddress(req, behindProxy);
     const identified = caller && !("reject" in caller) && caller.apiKey;
     const wait = identified
       ? limiter.hit(`key:${createHash("sha256").update(caller.apiKey!).digest("hex").slice(0, 16)}`, LIMITS.authenticated)
-      : limiter.hit(`ip:${ip}`, LIMITS.anonymous);
+      : from.platform
+        ? limiter.hit(`${from.platform}:${from.ip}`, LIMITS.platformAnonymous)
+        : limiter.hit(`ip:${from.ip}`, LIMITS.anonymous);
     if (wait) {
       req.resume();
       return tooMany(res, wait);
@@ -304,7 +316,10 @@ export function startHttpServer({ port, host }: HttpServerOptions) {
       if (validateOrigin && !validateOrigin(req, res)) return;
 
       if (oauth && (url.pathname === "/oauth/authorize" || url.pathname === "/oauth/register")) {
-        const wait = limiter.hit(`signin:${clientIp(req, behindProxy)}`, LIMITS.signIn);
+        const from = callerAddress(req, behindProxy);
+        const wait = from.platform
+          ? limiter.hit(`signin-${from.platform}:${from.ip}`, LIMITS.platformSignIn)
+          : limiter.hit(`signin:${from.ip}`, LIMITS.signIn);
         if (wait) {
           res.writeHead(429, { "Content-Type": "text/plain", "Retry-After": String(wait) });
           res.end("Too many sign-in attempts. Try again in a minute.");
@@ -340,6 +355,7 @@ export function startHttpServer({ port, host }: HttpServerOptions) {
   const shutdown = async () => {
     if (draining) return;
     draining = true;
+    stopEgressRefresh();
     logger.info(`Shutting down: waiting up to ${drainMs / 1000} s for ${inFlight} request(s) in flight`);
     server.close();
     server.closeIdleConnections();

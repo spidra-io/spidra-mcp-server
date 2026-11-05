@@ -114,7 +114,7 @@ async function startHttp(extraEnv = {}) {
     env: {
       ...process.env,
       SPIDRA_API_KEY: "",
-      HTTP_STREAMABLE_SERVER: "true",
+      HTTP_STREAMABLE_SERVER: "true", MCP_OPENAI_EGRESS_URL: "off",
       PORT: String(port),
       HOST: "127.0.0.1",
       SPIDRA_API_URL: `${backendUrl}/api`,
@@ -387,7 +387,7 @@ test("oauth: discovery documents point clients at the right resource and issuer"
   const base = `http://127.0.0.1:${port}`;
   oauthServer = await (async () => {
     const child = spawn(process.execPath, [SERVER_ENTRY], {
-      env: { ...process.env, SPIDRA_API_KEY: "", HTTP_STREAMABLE_SERVER: "true", PORT: String(port), HOST: "127.0.0.1", SPIDRA_API_URL: `${backendUrl}/api`, ...oauthEnv(base) },
+      env: { ...process.env, SPIDRA_API_KEY: "", HTTP_STREAMABLE_SERVER: "true", MCP_OPENAI_EGRESS_URL: "off", PORT: String(port), HOST: "127.0.0.1", SPIDRA_API_URL: `${backendUrl}/api`, ...oauthEnv(base) },
       stdio: ["ignore", "ignore", "inherit"],
     });
     children.push(child);
@@ -516,7 +516,7 @@ test("oauth: tokens survive a server restart, and a signing key rotation that ke
   await new Promise(r => oauthServer.child.once("exit", r));
   // Newest key first; the old one (derived from the client secret, as before) still opens existing tokens.
   const child = spawn(process.execPath, [SERVER_ENTRY], {
-    env: { ...process.env, SPIDRA_API_KEY: "", HTTP_STREAMABLE_SERVER: "true", PORT: String(port), HOST: "127.0.0.1", SPIDRA_API_URL: `${backendUrl}/api`, ...oauthEnv(base), MCP_OAUTH_SIGNING_KEYS: `rotated-signing-key,${UPSTREAM_SECRET}` },
+    env: { ...process.env, SPIDRA_API_KEY: "", HTTP_STREAMABLE_SERVER: "true", MCP_OPENAI_EGRESS_URL: "off", PORT: String(port), HOST: "127.0.0.1", SPIDRA_API_URL: `${backendUrl}/api`, ...oauthEnv(base), MCP_OAUTH_SIGNING_KEYS: `rotated-signing-key,${UPSTREAM_SECRET}` },
     stdio: ["ignore", "ignore", "inherit"],
   });
   children.push(child);

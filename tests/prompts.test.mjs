@@ -35,7 +35,7 @@ async function startHttp() {
   const { port } = srv.address();
   await new Promise(r => srv.close(r));
   const child = spawn(process.execPath, [SERVER_ENTRY], {
-    env: { ...process.env, SPIDRA_API_KEY: "", HTTP_STREAMABLE_SERVER: "true", PORT: String(port), HOST: "127.0.0.1" },
+    env: { ...process.env, SPIDRA_API_KEY: "", HTTP_STREAMABLE_SERVER: "true", MCP_OPENAI_EGRESS_URL: "off", PORT: String(port), HOST: "127.0.0.1" },
     stdio: ["ignore", "ignore", "inherit"],
   });
   children.push(child);

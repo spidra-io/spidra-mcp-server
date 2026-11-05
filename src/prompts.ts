@@ -138,7 +138,7 @@ export const PROMPTS: PromptDefinition[] = [
     title: "Use a ready-made template",
     description: "Find the ready-made template for a common data job on a well-known site, check its cost and run it.",
     args: {
-      task: req('What data you want, e.g. "Amazon products for wireless earbuds", "Polymarket odds on the election" or "jobs for data engineers in Berlin on LinkedIn"'),
+      task: req('What data you want, e.g. "Amazon products for wireless earbuds", "Zillow homes for sale in Austin" or "jobs for data engineers in Berlin on LinkedIn"'),
     },
     text: a =>
       lines(

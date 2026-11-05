@@ -79,7 +79,7 @@ export function registerTemplateTools(server: Server): void {
     output: findTemplatesOutput,
     description: `
 Find ready-made templates: jobs that turn a few inputs into a table of results, such as Google Maps leads with emails, Amazon keyword rank, LinkedIn or Indeed jobs, YouTube transcripts, Zillow homes or Google Flights prices. Free.
-Newer sites too: Polymarket and Kalshi odds, CoinMarketCap crypto data, Crunchbase News funding rounds, Google Business profiles and Google Search results.
+New sites and templates are added often, so search here rather than assuming one doesn't exist.
 
 **Use it first** when the task is a common data job on a well-known site. A template is usually cheaper and more complete than writing scrapes yourself.
 **Then:** spidra_get_template for its inputs, and spidra_run_template to run it.

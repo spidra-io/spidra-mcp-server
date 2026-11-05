@@ -349,7 +349,7 @@ OAuth sign-in is only for the hosted endpoint, where Spidra's backend is the ide
 
 With OAuth on, every MCP request without credentials gets a `401` with the sign-in challenge, from the first one, which is when Cursor, VS Code, Claude and ChatGPT start sign-in. The discovery documents and sign-in pages stay open. Nothing about OAuth is kept in memory, so restarts and deploys don't sign anyone out, and a backend hiccup answers `503` (retry) rather than anything that makes a client drop the session.
 
-The HTTP server also limits requests per minute: `MCP_RATE_ANONYMOUS` (60 per IP without credentials), `MCP_RATE_AUTHENTICATED` (600 per caller) and `MCP_RATE_SIGN_IN` (30 per IP on the sign-in pages). On `SIGTERM` it stops taking new requests and lets calls in flight finish, for up to `MCP_DRAIN_MS` (50,000), so set PM2's `kill_timeout` above that.
+The HTTP server also limits requests per minute: `MCP_RATE_ANONYMOUS` (60 per IP without credentials), `MCP_RATE_AUTHENTICATED` (600 per caller) and `MCP_RATE_SIGN_IN` (30 per IP on the sign-in pages). claude.ai, the Claude apps and ChatGPT call from their own servers, so all their users share a few addresses; those addresses get `MCP_RATE_PLATFORM_ANONYMOUS` (3,000) and `MCP_RATE_PLATFORM_SIGN_IN` (600) instead. Anthropic's ranges are built in, and ChatGPT's are loaded from `https://openai.com/chatgpt-connectors.json` at startup and every 6 hours (`MCP_OPENAI_EGRESS_URL` points elsewhere, or `off`). A platform address is only recognised from Cloudflare's `CF-Connecting-IP` or the socket, never from `X-Forwarded-For`. On `SIGTERM` it stops taking new requests and lets calls in flight finish, for up to `MCP_DRAIN_MS` (50,000), so set PM2's `kill_timeout` above that.
 
 ## How to choose a tool
 
@@ -453,6 +453,11 @@ Errors come back as readable messages, not stack traces, and each one carries gu
 ```
 
 Transient network failures and 5xx responses are retried automatically with backoff before you ever see an error, courtesy of the underlying [Spidra Node SDK](https://www.npmjs.com/package/spidra).
+
+## What changed in 0.8.1
+
+- **Claude and ChatGPT users no longer share one rate limit.** claude.ai, the Claude apps and ChatGPT reach the hosted server from a few addresses of their own, so the per-IP limits on sign-in and the first connection were shared by everyone on those apps. Those addresses now get their own, larger limits. Clients on your own machine (Claude Code, Cursor, VS Code and others) are unchanged.
+- **Tool descriptions no longer list "newer" sites.** New sites and templates are added on Spidra's side all the time and need no new version of this server: `spidra_find_templates` always returns the current list.
 
 ## What changed in 0.8.0
 
