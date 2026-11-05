@@ -1,0 +1,16 @@
+{
+  "name": "spidra",
+  "description": "Spidra's plugin for Claude Code: web search, scraping, crawling, document parsing, templates and monitors.",
+  "owner": {
+    "name": "Spidra",
+    "email": "hello@spidra.io",
+    "url": "https://spidra.io"
+  },
+  "plugins": [
+    {
+      "name": "spidra",
+      "source": "./plugin",
+      "description": "Get web data with Spidra: search, scrape, crawl, parse documents, run templates and watch pages for changes."
+    }
+  ]
+}

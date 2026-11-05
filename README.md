@@ -77,6 +77,14 @@ claude mcp add --transport http spidra https://mcp.spidra.io/mcp \
 
 Add `-s user` to either command to make Spidra available in every project.
 
+Or install the Spidra plugin, which adds the same server plus a `web-data` skill that helps Claude pick the right tool and keep jobs small:
+
+```
+/plugin install spidra --marketplace spidra-io/spidra-mcp-server
+```
+
+The plugin lives in [`plugin/`](plugin/). Use one way or the other, not both, or Claude Code lists the server twice.
+
 ### ChatGPT
 
 1. Go to **Settings** > **Apps** > **Advanced settings** and turn on **Developer mode**.
@@ -457,6 +465,7 @@ Transient network failures and 5xx responses are retried automatically with back
 ## What changed in 0.8.1
 
 - **Claude and ChatGPT users no longer share one rate limit.** claude.ai, the Claude apps and ChatGPT reach the hosted server from a few addresses of their own, so the per-IP limits on sign-in and the first connection were shared by everyone on those apps. Those addresses now get their own, larger limits. Clients on your own machine (Claude Code, Cursor, VS Code and others) are unchanged.
+- **A Claude Code plugin.** [`plugin/`](plugin/) bundles this server with a `web-data` skill; install it with `/plugin install spidra --marketplace spidra-io/spidra-mcp-server`.
 - **Tool descriptions no longer list "newer" sites.** New sites and templates are added on Spidra's side all the time and need no new version of this server: `spidra_find_templates` always returns the current list.
 
 ## What changed in 0.8.0

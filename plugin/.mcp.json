@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "spidra": {
+      "type": "http",
+      "url": "https://mcp.spidra.io/mcp"
+    }
+  }
+}

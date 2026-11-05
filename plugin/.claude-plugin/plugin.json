@@ -1,0 +1,20 @@
+{
+  "name": "spidra",
+  "displayName": "Spidra",
+  "version": "1.0.0",
+  "description": "Get web data with Spidra: search the web, read and crawl sites, parse documents, run ready-made templates for popular sites and watch pages for changes.",
+  "author": {
+    "name": "Spidra",
+    "email": "hello@spidra.io",
+    "url": "https://spidra.io"
+  },
+  "homepage": "https://docs.spidra.io/sdks/mcp",
+  "repository": "https://github.com/spidra-io/spidra-mcp-server",
+  "license": "MIT",
+  "keywords": ["web scraping", "web search", "crawling", "web data", "pdf parsing", "monitoring"],
+  "icon": "./logo.png",
+  "documentationUrl": "https://docs.spidra.io/sdks/mcp",
+  "supportUrl": "https://spidra.io/contact",
+  "privacyPolicyUrl": "https://spidra.io/privacy",
+  "termsOfServiceUrl": "https://spidra.io/terms"
+}
