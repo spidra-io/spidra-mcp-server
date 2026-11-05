@@ -31,7 +31,8 @@
     "dev": "tsup --watch",
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test tests/*.test.mjs"
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "check:tools": "npm run build && node tests/live/every-tool.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "2.1.2",

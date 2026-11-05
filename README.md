@@ -518,6 +518,8 @@ npm run typecheck
 
 `tests/evals/` runs realistic tasks through a real model (Claude Code headless, with only this server's tools) and scores tool choice, arguments, calls, credits and the answer. It spends real credits and model usage, so point it at a local API and run a few tasks at a time: `npm run build`, then `SPIDRA_EVAL_API_URL=http://localhost:4321/api SPIDRA_EVAL_API_KEY_FILE=<key file> node tests/evals/run.mjs --tasks credits_only,price_one` (`--list` shows the tasks).
 
+`npm run check:tools` calls every tool once against a real Spidra API, with no model involved, and prints ok or the error for each: a search, a map, a few pages, a short crawl and what reads it, a parse, a small template run, and a preset and a monitor that it creates and deletes. It costs a few credits. Run it with `SPIDRA_CHECK_API_URL=http://localhost:4321/api SPIDRA_CHECK_API_KEY_FILE=<key file> npm run check:tools`; against production it also asks for `SPIDRA_CHECK_ALLOW_PRODUCTION=1`.
+
 To run your local build against a local Spidra API, set `SPIDRA_API_URL=http://localhost:4321/api`.
 
 Contributions are welcome. Fork the repository, create a feature branch, make sure `npm test` passes, and open a pull request.
