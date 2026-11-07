@@ -6,13 +6,19 @@
 //   npm run build
 //   SPIDRA_EVAL_API_URL=http://localhost:4321/api SPIDRA_EVAL_API_KEY_FILE=/path/to/key node tests/evals/run.mjs --tasks credits_only,price_one
 //
-// Options: --tasks a,b (default: all), --model sonnet (default), --list, --out <dir> (default tests/evals/results).
+// Options: --tasks a,b (default: all), --model sonnet (default), --list, --out <dir> (default tests/evals/results),
+// --runs <n> (default 1), --skill <off|on|both> (default off).
+//
+// --skill measures what the plugin's skill adds on top of this server. Both arms use the same local server; "on"
+// also loads a copy of ../../plugin with its skills only (no .mcp.json, so the hosted server is never contacted),
+// and "both" runs each task without and with it and prints the pass rates side by side. Claude Code's own
+// `claude plugin eval` can't measure this: its baseline drops the whole plugin, server included.
 // Env: SPIDRA_EVAL_API_URL (default http://localhost:4321/api), SPIDRA_EVAL_API_KEY or SPIDRA_EVAL_API_KEY_FILE.
 //
 // It refuses to run against production or port 3000. It spends real credits on that account and model usage on
 // the Claude account it runs as, so run a few tasks at a time.
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +43,20 @@ const API_KEY = (process.env.SPIDRA_EVAL_API_KEY || (process.env.SPIDRA_EVAL_API
 const MODEL = flag("model") || "sonnet";
 const OUT = flag("out") || path.join(__dirname, "results");
 const TIMEOUT_MS = 10 * 60_000;
+const RUNS = Math.max(1, Number(flag("runs") || 1));
+const SKILL = flag("skill") || "off";
+if (!["off", "on", "both"].includes(SKILL)) throw new Error("--skill is off, on or both");
+const ARMS = SKILL === "both" ? ["off", "on"] : [SKILL];
+
+/** A copy of the plugin with its skills and manifest only, so the run's MCP server stays the local one. */
+function skillOnlyPlugin() {
+  const dir = mkdtempSync(path.join(tmpdir(), "spidra-skill-plugin-"));
+  const src = path.join(__dirname, "..", "..", "plugin");
+  cpSync(path.join(src, ".claude-plugin"), path.join(dir, ".claude-plugin"), { recursive: true });
+  cpSync(path.join(src, "skills"), path.join(dir, "skills"), { recursive: true });
+  return dir;
+}
+const SKILL_PLUGIN = ARMS.includes("on") ? skillOnlyPlugin() : undefined;
 
 const apiHost = new URL(API_URL);
 if (/spidra\.io$/i.test(apiHost.hostname) || apiHost.port === "3000") {
@@ -69,7 +89,7 @@ const monitorIds = async () => ((await api("/monitors")).monitors ?? []).map(m =
 const presetIds = async () => ((await api("/presets?limit=50")).presets ?? []).map(p => p.id);
 
 /** One task through `claude -p`, returning the Spidra tool calls in order and the final answer. */
-function runClaude(task, workDir) {
+function runClaude(task, workDir, arm = "off") {
   const config = { mcpServers: { spidra: { command: process.execPath, args: [SERVER_ENTRY], env: { SPIDRA_API_KEY: API_KEY, SPIDRA_API_URL: API_URL } } } };
   const configPath = path.join(workDir, "mcp.json");
   writeFileSync(configPath, JSON.stringify(config), { mode: 0o600 });
@@ -79,10 +99,12 @@ function runClaude(task, workDir) {
     "--mcp-config",
     configPath,
     "--strict-mcp-config",
+    // The Skill tool in both arms, so the only difference between them is whether the plugin's skill exists.
     "--tools",
-    "",
+    "Skill",
     "--allowedTools",
-    "mcp__spidra",
+    "mcp__spidra,Skill",
+    ...(arm === "on" ? ["--plugin-dir", SKILL_PLUGIN] : []),
     "--setting-sources",
     "project",
     "--no-session-persistence",
@@ -121,9 +143,14 @@ function runClaude(task, workDir) {
       let answer = "";
       let result = null;
       let toolsSeen = [];
+      const skills = [];
       for (const e of events) {
         if (e.type === "system" && e.subtype === "init") toolsSeen = e.tools ?? [];
         for (const block of e.message?.content ?? []) {
+          if (e.type === "assistant" && block.type === "tool_use" && block.name === "Skill") {
+            skills.push(block.input?.skill ?? block.input?.command ?? "?");
+            continue;
+          }
           if (e.type === "assistant" && block.type === "tool_use") {
             const call = { name: block.name.replace(/^mcp__spidra__/, ""), input: block.input, isError: false, text: "" };
             byId.set(block.id, call);
@@ -141,7 +168,7 @@ function runClaude(task, workDir) {
           answer = e.result ?? "";
         }
       }
-      resolve({ code, calls, answer, result, toolsSeen, stderr: stderr.slice(-2000) });
+      resolve({ code, calls, answer, result, toolsSeen, skills, stderr: stderr.slice(-2000) });
     });
   });
 }
@@ -168,12 +195,12 @@ const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outFile = path.join(OUT, `${stamp}-${MODEL}.json`);
 const report = { model: MODEL, apiUrl: API_URL, startedAt: new Date().toISOString(), tasks: [] };
 
-for (const task of tasks) {
+for (const task of tasks) for (const arm of ARMS) for (let n = 1; n <= RUNS; n++) {
   const workDir = mkdtempSync(path.join(tmpdir(), "spidra-eval-"));
   try {
     const [before, monitorsBefore, presetsBefore] = await Promise.all([creditsUsed(), monitorIds(), presetIds()]);
     const started = Date.now();
-    const run = await runClaude(task, workDir);
+    const run = await runClaude(task, workDir, arm);
     // Credits held by jobs still running settle a moment after they finish.
     await new Promise(r => setTimeout(r, 3000));
     const credits = (await creditsUsed()) - before;
@@ -184,6 +211,9 @@ for (const task of tasks) {
     const entry = {
       id: task.id,
       kind: task.kind,
+      skillArm: arm,
+      run: n,
+      skillsInvoked: run.skills,
       prompt: task.prompt,
       ...s,
       maxCalls: task.maxCalls,
@@ -200,7 +230,7 @@ for (const task of tasks) {
     report.tasks.push(entry);
     const mark = s.passed ? "PASS" : "FAIL";
     console.log(
-      `${mark} ${task.id.padEnd(24)} calls ${s.calls}/${task.maxCalls}  credits ${s.credits}/${task.maxCredits}  ${entry.seconds}s  ` +
+      `${mark} ${task.id.padEnd(24)} ${ARMS.length > 1 || arm === "on" ? `skill ${arm.padEnd(3)} ` : ""}${run.skills.length ? "[skill] " : ""}calls ${s.calls}/${task.maxCalls}  credits ${s.credits}/${task.maxCredits}  ${entry.seconds}s  ` +
         `${run.calls.map(c => c.name.replace("spidra_", "") + (c.isError ? "!" : "")).join(" > ")}`
     );
     for (const c of s.checks.filter(c => !c.ok)) console.log(`     x ${c.label}`);
@@ -212,5 +242,18 @@ for (const task of tasks) {
   }
 }
 
+if (SKILL_PLUGIN) rmSync(SKILL_PLUGIN, { recursive: true, force: true });
 const passed = report.tasks.filter(t => t.passed).length;
+if (ARMS.length > 1) {
+  console.log(`\n${"task".padEnd(24)} without skill    with skill       (passed runs, avg credits, avg model cost)`);
+  for (const task of tasks) {
+    const cell = arm => {
+      const rows = report.tasks.filter(t => t.id === task.id && t.skillArm === arm);
+      const ok = rows.filter(t => t.passed).length;
+      const avg = k => rows.reduce((a, t) => a + (Number(t[k]) || 0), 0) / (rows.length || 1);
+      return `${ok}/${rows.length} ${avg("credits").toFixed(1)}cr $${avg("costUsd").toFixed(2)}`.padEnd(16);
+    };
+    console.log(`${task.id.padEnd(24)} ${cell("off")} ${cell("on")}`);
+  }
+}
 console.log(`\n${passed}/${report.tasks.length} passed. Details: ${outFile}`);

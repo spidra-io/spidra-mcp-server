@@ -19,7 +19,7 @@ Read one known URL and get its content as Markdown, or the data you describe as 
 - "actions" runs browser steps first (click, type, scroll, forEach to go through a list); "instruction" does one task described in plain words instead. Never both. Steps run once and are never retried automatically, since a step like a form submission has effects.
 - If the result has "lowContent": true, the page came back nearly empty, usually because the site blocks automated visits. Call again with "useProxy": true.
 
-**Cost:** 1 credit, plus AI credits for the tokens used with a prompt or schema (often 1 or 2), plus 5 per CAPTCHA solved. A page that can't be read costs nothing.
+**Cost:** 1 credit, plus AI credits for the tokens used with a prompt or schema, plus 5 per CAPTCHA solved. AI credits grow with the page's length: 1 or 2 on a short page, and 20 or more on a long article or docs page. To read or summarize a page yourself, leave out "prompt" and get Markdown for 1 credit; use a prompt or schema when you need fields pulled out. A page that can't be read costs nothing.
 
 **Browser actions:** up to 50 steps (click, type, check, uncheck, hover, select, press, wait, waitFor, scroll, scrollUntilEnd, evaluate, screenshot, forEach), with waits adding up to 60 seconds at most. "selector" is CSS, XPath, or plain words ("the Sign in button"); prefer CSS when you know it. A failed step fails the job (free) with "Action N (...) failed: <reason>"; mark steps that may not be there, like cookie banners, "optional": true. forEach goes through a list of items and must be the single, last action. "actionResults" reports each step as ok, skipped or failed.
 

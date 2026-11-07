@@ -466,6 +466,7 @@ Transient network failures and 5xx responses are retried automatically with back
 
 - **Claude and ChatGPT users no longer share one rate limit.** claude.ai, the Claude apps and ChatGPT reach the hosted server from a few addresses of their own, so the per-IP limits on sign-in and the first connection were shared by everyone on those apps. Those addresses now get their own, larger limits. Clients on your own machine (Claude Code, Cursor, VS Code and others) are unchanged.
 - **A Claude Code plugin.** [`plugin/`](plugin/) bundles this server with a `web-data` skill; install it with `/plugin install spidra --marketplace spidra-io/spidra-mcp-server`.
+- **Cheaper page reading.** `spidra_scrape` now says that AI extraction grows with a page's length (20 credits or more on a long docs page, not "1 or 2"), and that reading a page as Markdown with no prompt costs 1 credit. In evals, assistants had been summarizing long pages with a prompt for 24 to 32 credits.
 - **Tool descriptions no longer list "newer" sites.** New sites and templates are added on Spidra's side all the time and need no new version of this server: `spidra_find_templates` always returns the current list.
 
 ## What changed in 0.8.0

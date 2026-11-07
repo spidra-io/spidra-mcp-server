@@ -289,4 +289,97 @@ export const TASKS = [
     maxCredits: 0,
     checks: [used("spidra_scrape"), atMost("spidra_scrape", 2), says(/couldn|could not|can't|cannot|fail|not exist|unreachable|resolve/i, "answer says it failed")],
   },
+
+  // --- whole jobs (run with --skill both to see what the plugin's skill adds) ----------
+  {
+    id: "wf_leads_table",
+    kind: "workflow: leads",
+    prompt: "I'm doing outreach. Find dental clinics in Ikeja, Lagos with their phone numbers and websites.",
+    maxCalls: 6,
+    maxCredits: 10,
+    checks: [
+      some("spidra_run_template", "runs google-maps-leads", i => i.slug === "google-maps-leads" && realRun(i)),
+      every("spidra_run_template", "searches the one area asked for", i => !realRun(i) || (i.inputs?.areas ?? []).length <= 1),
+      tableOf(5, "answer is a table of at least 5 clinics"),
+      says(/credit/i, "says what it cost"),
+    ],
+  },
+  {
+    id: "wf_research_sources",
+    kind: "workflow: research",
+    // The answer is on one known page (docs.python.org's What's New). Reading it as Markdown costs 1 credit;
+    // asking the AI to summarize that long page cost 24 to 32 in the first runs.
+    prompt: "What's new in Python 3.13? A short summary with sources, please.",
+    maxCalls: 4,
+    maxCredits: 5,
+    checks: [atMost("spidra_batch_scrape", 1), notUsed("spidra_crawl"), linksAtLeast(1, "links its source")],
+  },
+  {
+    id: "wf_research_opinions",
+    kind: "workflow: research",
+    prompt: "What are people saying online about the Framework Laptop 13's battery life? A short summary with sources.",
+    maxCalls: 5,
+    maxCredits: 12,
+    checks: [used("spidra_search"), atMost("spidra_scrape", 1), atMost("spidra_batch_scrape", 1), notUsed("spidra_crawl"), linksAtLeast(3, "links at least 3 sources")],
+  },
+  {
+    id: "wf_category_complete",
+    kind: "workflow: every item",
+    prompt: "Give me every book in the Poetry category on books.toscrape.com with its price.",
+    maxCalls: 5,
+    maxCredits: 6,
+    checks: [notUsed("spidra_crawl"), tableOf(19, "answer is a table of all 19 books"), says(/\b19\b/, "says how many there are")],
+  },
+  {
+    id: "wf_watch_stock",
+    kind: "workflow: monitor",
+    prompt: `Tell me if ${BOOK_1} goes out of stock or its price changes. I confirm the cost, go ahead and set it up.`,
+    maxCalls: 5,
+    maxCredits: 3,
+    checks: [
+      some("spidra_create_monitor", "creates a monitor", realRun),
+      some("spidra_create_monitor", "watches price and stock", i => realRun(i) && /price/i.test(JSON.stringify(i.watchFields ?? i.goal ?? "")) && /stock|avail/i.test(JSON.stringify([i.watchFields, i.goal, i.rule]))),
+      says(/pause|delete|stop|turn (it )?off|cancel/i, "says how to stop it"),
+    ],
+  },
+  {
+    id: "wf_code_node",
+    kind: "workflow: code",
+    prompt: `Write a Node.js script that uses Spidra to get the title and price of ${BOOK_1} as JSON and prints it. Just give me the code, don't run anything.`,
+    maxCalls: 2,
+    maxCredits: 0,
+    checks: [
+      says(/import\s*\{\s*SpidraClient\s*\}\s*from\s*["']spidra["']|require\(\s*["']spidra["']\s*\)[\s\S]*SpidraClient/, "imports SpidraClient from spidra"),
+      says(/process\.env\.SPIDRA_API_KEY/, "reads the key from SPIDRA_API_KEY"),
+      says(/urls:\s*\[\s*\{\s*url:/, "passes urls as [{ url }]"),
+      says(/npm (install|i) spidra/, "says how to install it"),
+      { label: "no hardcoded key", fn: (_c, a) => !/apiKey:\s*["']spd_[A-Za-z0-9]{8,}/.test(a) },
+    ],
+  },
+  {
+    id: "wf_code_python",
+    kind: "workflow: code",
+    prompt: `Write a Python script that uses Spidra to get the title and price of ${BOOK_1} as JSON and prints it. Just give me the code, don't run anything.`,
+    maxCalls: 2,
+    maxCredits: 0,
+    checks: [
+      says(/from spidra import (Async)?Spidra\b/, "imports Spidra from spidra"),
+      says(/os\.environ|os\.getenv/, "reads the key from the environment"),
+      says(/\.scrape\(/, "calls scrape()"),
+      says(/pip install spidra/, "says how to install it"),
+    ],
+  },
 ];
+
+/** At least n rows in a Markdown table in the answer (header and separator lines not counted). */
+function tableOf(n, label) {
+  return {
+    label,
+    fn: (_calls, answer) => answer.split("\n").filter(l => /^\s*\|.*\|\s*$/.test(l) && !/^\s*\|[\s:|-]+\|\s*$/.test(l)).length - 1 >= n,
+  };
+}
+
+/** At least n distinct http(s) links in the answer. */
+function linksAtLeast(n, label) {
+  return { label, fn: (_calls, answer) => new Set(answer.match(/https?:\/\/[^\s)\]>"']+/g) ?? []).size >= n };
+}
