@@ -600,3 +600,10 @@ test("every input schema stays well under the size Claude web and Desktop drop a
     assert.ok(size < 12_000, `${t.name} inputSchema is ${size} chars`);
   }
 });
+
+test("spidra_scrape: a proxyCountry on its own is sent without useProxy, so the API reads from that country", async () => {
+  await client.callTool("spidra_scrape", { url: "https://example.com/de", prompt: "Extract the headline", proxyCountry: "de" });
+  const submit = recorded.filter((r) => r.method === "POST" && r.url === "/api/scrape").map((r) => JSON.parse(r.body)).find((b) => b.urls?.[0]?.url === "https://example.com/de");
+  assert.equal(submit.proxyCountry, "de");
+  assert.equal("useProxy" in submit, false);
+});

@@ -432,7 +432,7 @@ export const proxyParams = {
   proxyCountry: z
     .string()
     .optional()
-    .describe('With useProxy, the country to browse from: a two-letter code such as "us", "gb" or "de", or "global", "eu" or "asia"'),
+    .describe('The country to read pages from: a two-letter code such as "us", "gb" or "de", or "eu" or "asia". Setting one uses Stealth Mode (billed by bandwidth) unless useProxy is false. "global" means any country.'),
 };
 
 export const cookiesParam = z

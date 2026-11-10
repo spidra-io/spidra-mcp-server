@@ -74,7 +74,9 @@ Read one known URL and get its content as Markdown, or the data you describe as 
             ...(args.screenshot != null ? { screenshot: args.screenshot } : {}),
             ...(args.fullPageScreenshot != null ? { fullPageScreenshot: args.fullPageScreenshot } : {}),
             ...(args.extractContentOnly != null ? { extractContentOnly: args.extractContentOnly } : {}),
-            useProxy: args.useProxy ?? false,
+            // useProxy stays false unless set, except that a proxyCountry on its own is left to the API, which then
+            // reads from that country with Stealth Mode.
+            ...(args.useProxy != null ? { useProxy: args.useProxy } : args.proxyCountry ? {} : { useProxy: false }),
             ...(args.proxyCountry ? { proxyCountry: args.proxyCountry } : {}),
             scrapeMode: args.scrapeMode ?? (hasSteps ? "default" : "fast"),
           } as never,
