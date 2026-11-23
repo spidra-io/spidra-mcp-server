@@ -462,6 +462,14 @@ Errors come back as readable messages, not stack traces, and each one carries gu
 
 Transient network failures and 5xx responses are retried automatically with backoff before you ever see an error, courtesy of the underlying [Spidra Node SDK](https://www.npmjs.com/package/spidra).
 
+## What changed in 0.9.0
+
+- **More search options.** `spidra_search` takes `safeSearch`, `language`, `startDate` and `endDate`, `sort` (newest news first), `developerTypes` (GitHub repositories and users as well as issues and pull requests), and `filetype` now covers Word, Excel, PowerPoint, text, CSV, RTF, OpenDocument and EPUB files as well as PDFs. When a requested source can't apply an option it runs without it, and the result's `warnings` says so.
+- **What each call cost.** Search and scrape results include `creditsUsed`.
+- **Clearer page results.** `spidra_scrape` and batch items show `httpStatus` when a page answered with an error such as 404 but still had content, and `extractionEmpty` when a prompt or schema found nothing. A batch where every URL failed now ends `failed`.
+- **Template fields.** `spidra_get_template` lists the fields each row has and any `optionalFields` that only appear when an input is set.
+- Monitor `recipients` can include the account's own address with status `owner`. Tool names and existing arguments are unchanged.
+
 ## What changed in 0.8.1
 
 - **Claude and ChatGPT users no longer share one rate limit.** claude.ai, the Claude apps and ChatGPT reach the hosted server from a few addresses of their own, so the per-IP limits on sign-in and the first connection were shared by everyone on those apps. Those addresses now get their own, larger limits. Clients on your own machine (Claude Code, Cursor, VS Code and others) are unchanged.

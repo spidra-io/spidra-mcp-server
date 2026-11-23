@@ -25,7 +25,7 @@ export function registerJobTools(server: Server): void {
 Get any job's status, and its result once finished. Use it for the ids other tools return when they don't wait to the end.
 
 - "scrape", "search": a jobId. Readable for about an hour after it finishes (failed ones 24 hours); after that, use spidra_logs.
-- "batch": a batchId. A completed batch can still have failed items; check "failedCount".
+- "batch": a batchId. A completed batch can still have failed items; check "failedCount". A batch where every URL failed ends "failed".
 - "crawl": a jobId. Returns the first 100 pages; spidra_crawl_pages reads the rest.
 - "parse": a jobId. "includePages" adds each page's Markdown.
 - "parse_batch": a batchId.

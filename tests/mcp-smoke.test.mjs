@@ -43,6 +43,7 @@ const fakeApi = createServer((req, res) => {
       if (submitted.urls?.[0]?.url === "https://steps.example.com") return send(202, { status: "queued", jobId: "job-steps" });
       if (submitted.urls?.[0]?.url === "https://instruction.example.com") return send(202, { status: "queued", jobId: "job-instr" });
       if (submitted.urls?.[0]?.url === "https://step-fails.example.com") return send(202, { status: "queued", jobId: "job-step-fails" });
+      if (submitted.urls?.[0]?.url === "https://gone.example.com/page") return send(202, { status: "queued", jobId: "job-gone" });
       return send(202, { status: "queued", jobId: "job-abc" });
     }
     if (req.method === "GET" && (req.url === "/api/scrape/job-steps" || req.url === "/api/scrape/job-instr")) {
@@ -67,6 +68,22 @@ const fakeApi = createServer((req, res) => {
           stats: { durationMs: 900, captchaSolvedCount: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 },
         },
         error: null,
+      });
+    }
+    if (req.method === "GET" && req.url === "/api/scrape/job-gone") {
+      return send(200, {
+        status: "completed",
+        result: {
+          content: { title: null },
+          data: [{ url: "https://gone.example.com/page", success: true, httpStatus: 404 }],
+          screenshots: [],
+          ai_extraction_failed: false,
+          extraction_empty: true,
+          creditsUsed: 1,
+          stats: { durationMs: 300, captchaSolvedCount: 0, inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+        },
+        error: null,
+        creditsUsed: 1,
       });
     }
     if (req.method === "GET" && req.url === "/api/scrape/job-step-fails") {
@@ -159,7 +176,7 @@ const fakeApi = createServer((req, res) => {
         finishedAt: "2026-09-26T00:00:05.000Z",
         items: [
           { uuid: "i1", url: "https://wait-me.example.com/a", jobId: "j1", status: "completed", result: "content a", creditsUsed: 1, startedAt: null, finishedAt: null, screenshotUrl: null },
-          { uuid: "i2", url: "https://wait-me.example.com/b", jobId: "j2", status: "completed", result: "content b", creditsUsed: 1, startedAt: null, finishedAt: null, screenshotUrl: null },
+          { uuid: "i2", url: "https://wait-me.example.com/b", jobId: "j2", status: "completed", result: "content b", creditsUsed: 1, startedAt: null, finishedAt: null, screenshotUrl: null, httpStatus: 404, extractionEmpty: true },
         ],
       });
     }
@@ -177,8 +194,10 @@ const fakeApi = createServer((req, res) => {
         status: "completed",
         result: {
           success: true,
-          data: { web: [{ title: "Fake result", url: "https://example.com", position: 1 }] },
+          data: { web: [{ title: "Fake result", url: "https://example.com", position: 1 }], nextPageTokens: { web: "next-web" } },
           stats: { durationMs: 900 },
+          creditsUsed: 1,
+          warnings: ["sort doesn't apply to web results, so they came back without it."],
         },
         error: null,
       });
@@ -200,7 +219,7 @@ const fakeApi = createServer((req, res) => {
       return send(404, { status: "error", message: 'There is no template called "google-maps-lead". GET /api/templates lists them.' });
     }
     if (req.method === "GET" && req.url === "/api/templates/google-maps-leads") {
-      return send(200, { status: "success", template: { slug: "google-maps-leads", version: 4, title: "Google Maps leads", summary: "s", site: { key: "google-maps", name: "Google Maps", domain: "google.com" }, categories: [], tool: "batch", inputs: [{ key: "query", label: "Business type", type: "text", required: true }], columns: [{ key: "title", label: "Name" }, { key: "socials.instagram", label: "Instagram" }], limits: [] } });
+      return send(200, { status: "success", template: { slug: "google-maps-leads", version: 4, title: "Google Maps leads", summary: "s", site: { key: "google-maps", name: "Google Maps", domain: "google.com" }, categories: [], tool: "batch", fields: ["Name", "Instagram"], optionalFields: [{ field: "Emails", key: "emails", when: { input: "findEmails", equals: true } }], inputs: [{ key: "query", label: "Business type", type: "text", required: true }], columns: [{ key: "title", label: "Name" }, { key: "socials.instagram", label: "Instagram" }], limits: [] } });
     }
     if (req.method === "POST" && req.url === "/api/templates/google-maps-leads/runs") {
       const submitted = JSON.parse(body);
@@ -531,6 +550,62 @@ test("spidra_search forwards research/developer sources, pageTokens, timeRange, 
   assert.deepEqual(submitted.pageTokens, { web: "opaque-token" });
   assert.equal(submitted.timeRange, "month");
   assert.equal(submitted.filetype, "pdf");
+});
+
+test("spidra_search sends the newer options and returns creditsUsed and warnings", async () => {
+  const result = await client.callTool("spidra_search", {
+    query: "quarterly results",
+    sources: ["web", "news", "developer"],
+    safeSearch: "strict",
+    language: "zh-TW",
+    startDate: "2026-01-01",
+    endDate: "2026-06-30",
+    sort: "date",
+    filetype: "docx",
+    developerTypes: ["repositories", "issues"],
+  });
+  assert.equal(result.isError ?? false, false);
+  const submitted = JSON.parse(recorded.filter((r) => r.method === "POST" && r.url === "/api/search").pop().body);
+  assert.equal(submitted.safeSearch, "strict");
+  assert.equal(submitted.language, "zh-TW");
+  assert.equal(submitted.startDate, "2026-01-01");
+  assert.equal(submitted.endDate, "2026-06-30");
+  assert.equal(submitted.sort, "date");
+  assert.equal(submitted.filetype, "docx");
+  assert.deepEqual(submitted.developerTypes, ["repositories", "issues"]);
+  assert.equal(result.structuredContent.creditsUsed, 1);
+  assert.deepEqual(result.structuredContent.warnings, ["sort doesn't apply to web results, so they came back without it."]);
+  assert.deepEqual(result.structuredContent.data.nextPageTokens, { web: "next-web" });
+});
+
+test("spidra_search rejects a file type or date the API doesn't take, before calling it", async () => {
+  const before = recorded.filter((r) => r.url === "/api/search").length;
+  const bad = await client.callTool("spidra_search", { query: "x", filetype: "exe" });
+  assert.equal(bad.isError, true);
+  const badDate = await client.callTool("spidra_search", { query: "x", startDate: "01/02/2026" });
+  assert.equal(badDate.isError, true);
+  assert.equal(recorded.filter((r) => r.url === "/api/search").length, before);
+});
+
+test("spidra_scrape returns creditsUsed, httpStatus and extractionEmpty", async () => {
+  const result = await client.callTool("spidra_scrape", { url: "https://gone.example.com/page", prompt: "Title", output: "json" });
+  assert.equal(result.isError ?? false, false);
+  assert.equal(result.structuredContent.creditsUsed, 1);
+  assert.equal(result.structuredContent.httpStatus, 404);
+  assert.equal(result.structuredContent.extractionEmpty, true);
+});
+
+test("spidra_batch_scrape with wait:true keeps each item's httpStatus and extractionEmpty", async () => {
+  const result = await client.callTool("spidra_batch_scrape", { urls: ["https://wait-me.example.com/a", "https://wait-me.example.com/b"], wait: true });
+  const item = result.structuredContent.items.find((i) => i.url === "https://wait-me.example.com/b");
+  assert.equal(item.httpStatus, 404);
+  assert.equal(item.extractionEmpty, true);
+});
+
+test("spidra_get_template returns fields and optionalFields", async () => {
+  const result = await client.callTool("spidra_get_template", { slug: "google-maps-leads" });
+  assert.deepEqual(result.structuredContent.fields, ["Name", "Instagram"]);
+  assert.deepEqual(result.structuredContent.optionalFields, [{ field: "Emails", key: "emails", when: { input: "findEmails", equals: true } }]);
 });
 
 test("spidra_retry_batch retries failed items", async () => {

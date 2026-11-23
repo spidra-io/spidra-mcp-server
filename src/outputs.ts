@@ -41,6 +41,8 @@ export const searchOutput = o({
   data: z
     .looseObject({ extras: any.optional(), nextPageTokens: z.record(z.string(), z.string()).optional() })
     .catchall(list(searchItem)),
+  creditsUsed: n,
+  warnings: strings,
   logUuid: s,
 });
 
@@ -54,6 +56,9 @@ export const scrapeOutput = o({
   actionResults: list(o({ index: n, status: s, error: s })),
   warnings: strings,
   lowContent: b,
+  httpStatus: n,
+  extractionEmpty: b,
+  creditsUsed: n,
   stats: any,
 });
 
@@ -61,7 +66,7 @@ const batchFields = {
   batchId: s,
   status: s,
   failedCount: n,
-  items: list(o({ url: s, status: s, result: any, error: sn })),
+  items: list(o({ url: s, status: s, result: any, error: sn, creditsUsed: n, httpStatus: n, extractionEmpty: b })),
 };
 
 export const batchScrapeOutput = o({ ...batchFields, next: s });
@@ -112,6 +117,8 @@ export const getTemplateOutput = o({
   slug: s,
   inputs: list(o({ key: s, type: s, required: b })),
   columns: list(any),
+  fields: strings,
+  optionalFields: list(o({ field: s, key: s, when: any })),
 });
 
 // A finished or running run, or an estimate.
@@ -136,13 +143,15 @@ export const deletedOutput = o({ deleted: s });
 // --- monitors ----------------------------------------------------------------
 
 const monitor = o({ id: s, name: s, status: s, nextRunAt: sn });
+// Who gets email alerts: the account's own address (status "owner") first while email is on, then extra addresses.
+const recipients = list(o({ email: s, status: s }));
 
 // The new monitor, an estimate, or a test notification's result.
-export const createMonitorOutput = o({ monitor, creditsPerCheck: n, creditsPerMonth: n, sent: n });
+export const createMonitorOutput = o({ monitor, recipients, creditsPerCheck: n, creditsPerMonth: n, sent: n });
 
 export const listMonitorsOutput = o({ monitors: list(monitor), id: s });
 
-export const updateMonitorOutput = o({ monitor });
+export const updateMonitorOutput = o({ monitor, recipients });
 
 export const messageOutput = o({ message: s, next: s });
 

@@ -18,8 +18,9 @@ Read one known URL and get its content as Markdown, or the data you describe as 
 - Popular sites (Amazon, Google Maps, LinkedIn, YouTube, Zillow, Indeed and others): with "output": "json" and no prompt, "content" is the page's data in named fields, no AI needed. Otherwise that data is in "structuredData". The list of supported sites keeps growing.
 - "actions" runs browser steps first (click, type, scroll, forEach to go through a list); "instruction" does one task described in plain words instead. Never both. Steps run once and are never retried automatically, since a step like a form submission has effects.
 - If the result has "lowContent": true, the page came back nearly empty, usually because the site blocks automated visits. Call again with "useProxy": true.
+- "httpStatus" is set when the page answered with an error such as 404 but still had content (a site's own "not found" page). "extractionEmpty": true means the prompt or schema found nothing on the page.
 
-**Cost:** 1 credit, plus AI credits for the tokens used with a prompt or schema, plus 5 per CAPTCHA solved. AI credits grow with the page's length: 1 or 2 on a short page, and 20 or more on a long article or docs page. To read or summarize a page yourself, leave out "prompt" and get Markdown for 1 credit; use a prompt or schema when you need fields pulled out. A page that can't be read costs nothing.
+**Cost:** 1 credit, plus AI credits for the tokens used with a prompt or schema, plus 5 per CAPTCHA solved. AI credits grow with the page's length: 1 or 2 on a short page, and 20 or more on a long article or docs page. To read or summarize a page yourself, leave out "prompt" and get Markdown for 1 credit; use a prompt or schema when you need fields pulled out. A page that can't be read costs nothing. "creditsUsed" in the result says what the scrape cost.
 
 **Browser actions:** up to 50 steps (click, type, check, uncheck, hover, select, press, wait, waitFor, scroll, scrollUntilEnd, evaluate, screenshot, forEach), with waits adding up to 60 seconds at most. "selector" is CSS, XPath, or plain words ("the Sign in button"); prefer CSS when you know it. A failed step fails the job (free) with "Action N (...) failed: <reason>"; mark steps that may not be there, like cookie banners, "optional": true. forEach goes through a list of items and must be the single, last action. "actionResults" reports each step as ok, skipped or failed.
 
@@ -91,9 +92,12 @@ Read one known URL and get its content as Markdown, or the data you describe as 
               actionResults?: unknown[];
               forEachItems?: number;
               lowContent?: boolean;
+              httpStatus?: number;
               screenshotUrl?: string;
             }
           | undefined;
+        // Newer than the installed spidra SDK types.
+        const extra = result as { creditsUsed?: number; extraction_empty?: boolean };
         // The job's warnings include this URL's own plus any about credits running short.
         const warnings = (result as { warnings?: string[] }).warnings ?? first?.warnings;
         // With output "json" and no prompt on a popular site, content already is the structured data.
@@ -108,6 +112,8 @@ Read one known URL and get its content as Markdown, or the data you describe as 
           ...(warnings?.length ? { warnings } : {}),
           ...(result.screenshots?.length ? { screenshots: result.screenshots } : {}),
           ...(result.ai_extraction_failed ? { aiExtractionFailed: true } : {}),
+          ...(extra.extraction_empty ? { extractionEmpty: true } : {}),
+          ...(typeof first?.httpStatus === "number" ? { httpStatus: first.httpStatus } : {}),
           ...(first?.lowContent
             ? {
                 lowContent: true,
@@ -116,6 +122,7 @@ Read one known URL and get its content as Markdown, or the data you describe as 
                   : 'The page came back nearly empty, usually because the site blocks automated visits. Call again with "useProxy": true.',
               }
             : {}),
+          ...(typeof extra.creditsUsed === "number" ? { creditsUsed: extra.creditsUsed } : {}),
           stats: result.stats,
         });
       });
@@ -130,10 +137,11 @@ Read one known URL and get its content as Markdown, or the data you describe as 
 Read 2 to 50 known URLs, each on its own with its own result, using the same prompt or schema for all.
 
 **Use it for** anything with more than one URL: product pages, listings, articles, or just two pages to compare.
-**Waiting:** with "wait": true and 10 URLs or fewer, it waits (up to 45 seconds) and returns the finished batch, or the batchId if it isn't done by then. Otherwise it returns a "batchId" straight away; check it with spidra_get_job (type "batch", with "waitSeconds" to wait for it) until "status" is completed or cancelled. Don't start the batch again while it runs.
+**Waiting:** with "wait": true and 10 URLs or fewer, it waits (up to 45 seconds) and returns the finished batch, or the batchId if it isn't done by then. Otherwise it returns a "batchId" straight away; check it with spidra_get_job (type "batch", with "waitSeconds" to wait for it) until "status" is completed, failed or cancelled. Don't start the batch again while it runs.
 
 - "output" is "markdown" (default) or "json"; a schema sets "json". Popular-site pages also get "structuredData".
-- A completed batch can still have failed items: check "failedCount" and each item's "error". spidra_retry_batch re-runs only the failed ones.
+- A completed batch can still have failed items: check "failedCount" and each item's "error". A batch where every URL failed ends "failed". spidra_retry_batch re-runs only the failed ones.
+- A completed item can have "httpStatus" (the page answered with an error such as 404 but had content) or "extractionEmpty": true (the prompt or schema found nothing).
 - Browser actions aren't supported in a batch; use spidra_scrape for pages that need them.
 
 **Cost:** per URL, the same as spidra_scrape. Failed URLs cost nothing.

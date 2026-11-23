@@ -121,7 +121,7 @@ Filter with "q" (words, e.g. "reviews"), "site" (e.g. "google-maps", "amazon") o
     annotations: { title: "Get a template's inputs", readOnlyHint: true, openWorldHint: false },
     output: getTemplateOutput,
     description: `
-Get what a template needs and what it returns: its inputs (send them by "key" to spidra_run_template; "required" ones must be set, others have defaults), its columns, and its limits in plain words. Free.
+Get what a template needs and what it returns: its inputs (send them by "key" to spidra_run_template; "required" ones must be set, others have defaults), its columns, the fields each row has, any "optionalFields" a row only has when an input is set (each says which input in "when"), and its limits in plain words. Free.
 `,
     parameters: z.object({ slug: z.string().describe('The template\'s slug, e.g. "google-maps-leads"') }),
     execute: async (args, { session }) => {
@@ -136,6 +136,11 @@ Get what a template needs and what it returns: its inputs (send them by "key" to
           ...(t.usesAi ? { usesAi: true } : {}),
           inputs: conciseInputs(t),
           columns: (t.columns ?? []).map(c => ({ key: c.key, label: c.label })),
+          ...(t.fields?.length ? { fields: t.fields } : {}),
+          // Newer than the installed spidra SDK types.
+          ...((t as { optionalFields?: unknown[] }).optionalFields?.length
+            ? { optionalFields: (t as { optionalFields?: unknown[] }).optionalFields }
+            : {}),
           limits: t.limits ?? [],
           ...(t.availability ? { availability: t.availability } : {}),
         });
